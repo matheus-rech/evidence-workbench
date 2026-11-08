@@ -3,7 +3,7 @@ import CryptoKit
 import Darwin
 
 public actor ProjectRepository {
-    public let root: URL
+    nonisolated public let root: URL
     private let encoder: JSONEncoder
     private let decoder = JSONDecoder()
 

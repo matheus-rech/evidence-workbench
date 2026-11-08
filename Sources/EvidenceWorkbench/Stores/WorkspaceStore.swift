@@ -431,7 +431,7 @@ struct CloudAccess: Sendable {
                 do { job = try await self.client.startResearch(project: updated, question: question, model: self.researchModel, apiKey: key) }
                 catch {
                     // Leave the chat self-explanatory instead of an unanswered user turn.
-                    try? await self.mutate(project.id) { $0.messages.append(.init(role: "assistant", text: "Deep research could not start: \(error.localizedDescription) No job was created and no variables were proposed.")) }
+                    _ = try? await self.mutate(project.id) { $0.messages.append(.init(role: "assistant", text: "Deep research could not start: \(error.localizedDescription) No job was created and no variables were proposed.")) }
                     throw error
                 }
                 do {
