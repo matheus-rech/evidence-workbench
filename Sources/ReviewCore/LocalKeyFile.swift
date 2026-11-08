@@ -12,7 +12,9 @@ public enum LocalKeyFile {
             let value = parts[1].trimmingCharacters(in: .whitespaces)
             if let data = value.data(using: .utf8), let decoded = try? JSONDecoder().decode(String.self, from: data), !decoded.isEmpty { return decoded }
             let unquoted = value.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
-            guard !unquoted.isEmpty, !unquoted.contains(where: { $0.isWhitespace }) else { throw WorkbenchError.missingKey }
+            // The variable is present, so this is a broken value, not an absent one: `missingKey` would let the app fall back
+            // to a different credential. The value itself is never echoed.
+            guard !unquoted.isEmpty, !unquoted.contains(where: { $0.isWhitespace }) else { throw WorkbenchError.invalid("OPENAI_API_KEY in \(url.lastPathComponent) is empty or contains whitespace. Fix that line, or remove it to use the Keychain key.") }
             return unquoted
         }
         throw WorkbenchError.missingKey
