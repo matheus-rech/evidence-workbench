@@ -4,9 +4,37 @@ import XCTest
 final class RepositoryTests: XCTestCase {
     func testExternalPilotWorkspaceLoadsWhenRequested() async throws {
         guard let path = ProcessInfo.processInfo.environment["EW_VALIDATION_PROJECT_ROOT"] else { return }
-        let projects = try await ProjectRepository(root: URL(fileURLWithPath: path)).list()
-        XCTAssertFalse(projects.isEmpty)
-        XCTAssertEqual(projects.first?.plan.version, 2)
+        let listing = try await ProjectRepository(root: URL(fileURLWithPath: path)).list()
+        XCTAssertFalse(listing.projects.isEmpty)
+        XCTAssertTrue(listing.failures.isEmpty, listing.failures.joined(separator: "\n"))
+        XCTAssertEqual(listing.projects.first?.plan.version, 2)
+    }
+    func testListIsolatesUnreadableProjectDirectories() async throws {
+        let root = try tempRoot(); let repository = ProjectRepository(root: root)
+        let good = try await repository.save(ReviewProject(title: "Readable"))
+        let corrupt = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: corrupt, withIntermediateDirectories: true)
+        try Data("{not json".utf8).write(to: corrupt.appendingPathComponent("project.json"))
+        let halfCreated = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: halfCreated, withIntermediateDirectories: true)
+        var future = ReviewProject(title: "Newer app"); future.schemaVersion = 99
+        let futureDirectory = root.appendingPathComponent(future.id.uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: futureDirectory, withIntermediateDirectories: true)
+        try JSONEncoder().encode(future).write(to: futureDirectory.appendingPathComponent("project.json"))
+        let listing = try await repository.list()
+        XCTAssertEqual(listing.projects.map(\.id), [good.id])
+        XCTAssertEqual(listing.failures.count, 3)
+        XCTAssertTrue(listing.failures.contains { $0.contains(corrupt.lastPathComponent) })
+        XCTAssertTrue(listing.failures.contains { $0.contains("Unsupported project version") })
+    }
+    func testOnlyLoadableDocumentTypesCanBeInstalled() async throws {
+        let repository = ProjectRepository(root: try tempRoot()); let project = try await repository.save(ReviewProject())
+        for suffix in ["html", "htm", "exe"] {
+            do { _ = try await repository.installDocument(data: Data("x".utf8), extension: suffix, projectID: project.id); XCTFail("\(suffix) is not loadable and must be refused") } catch {}
+        }
+        for suffix in ["pdf", "docx", "txt", "md", "PDF"] {
+            _ = try await repository.installDocument(data: Data(suffix.utf8), extension: suffix, projectID: project.id)
+        }
     }
     func tempRoot() throws -> URL {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("EvidenceWorkbenchTests-" + UUID().uuidString)
@@ -18,7 +46,7 @@ final class RepositoryTests: XCTestCase {
         let repository = ProjectRepository(root: try tempRoot())
         let saved = try await repository.save(ReviewProject(title: "Test review"))
         XCTAssertEqual(saved.revision, 1)
-        let loaded = try await repository.list()
+        let loaded = try await repository.list().projects
         XCTAssertEqual(loaded.first?.id, saved.id); XCTAssertEqual(loaded.first?.title, "Test review")
     }
     func testStaleWriterCannotOverwriteNewerRevision() async throws {
@@ -28,7 +56,7 @@ final class RepositoryTests: XCTestCase {
         _ = try await a.save(first)
         var stale = original; stale.title = "Stale writer"
         do { _ = try await b.save(stale); XCTFail("Stale write should fail") } catch { XCTAssertTrue(error is WorkbenchError) }
-        let reloaded = try await a.list(); XCTAssertEqual(reloaded.first?.title, "First writer")
+        let reloaded = try await a.list().projects; XCTAssertEqual(reloaded.first?.title, "First writer")
     }
     func testSourceHashDetectsTamperingAndPathTraversal() async throws {
         let repository = ProjectRepository(root: try tempRoot()); let project = try await repository.save(ReviewProject())

@@ -118,6 +118,17 @@ final class ReviewEngineTests: XCTestCase {
         let merged = ReviewEngine.mergeSuggestions(existing: [protected, other], incoming: [replacement, extra], documentID: doc, planVersion: 1)
         XCTAssertEqual(merged.count, 3); XCTAssertTrue(merged.contains(protected)); XCTAssertTrue(merged.contains(other)); XCTAssertFalse(merged.contains(replacement))
     }
+    func testAbsenceRowsSkipVariablesTheReviewerAlreadyRecorded() {
+        let doc = UUID()
+        let variables = [field("n", type: .integer), field("events", type: .integer), field("age_mean")]
+        let verified = Observation(documentID: doc, variableID: "n", value: "235", context: .init(arm: "Control"), status: .verified, reviewer: "QA")
+        let rejected = Observation(documentID: doc, variableID: "age_mean", value: "99", status: .rejected, reviewer: "QA")
+        let fromThisRun = Observation(documentID: doc, variableID: "events", value: "4", model: "m")
+        let rows = ReviewEngine.absenceSuggestions(variables: variables, consolidated: [fromThisRun], existing: [verified, rejected], documentID: doc, pagesIncomplete: false, model: "m", planVersion: 1)
+        XCTAssertEqual(rows.map(\.variableID), ["age_mean"], "A reviewer-recorded value is not absence; a rejected suggestion still needs an explicit absence decision.")
+        XCTAssertEqual(rows.first?.missingness, .notReported)
+        XCTAssertEqual(ReviewEngine.absenceSuggestions(variables: variables, consolidated: [], existing: [], documentID: doc, pagesIncomplete: true, model: "m", planVersion: 1).map(\.missingness), [.unclear, .unclear, .unclear])
+    }
     func testHistoricalExportKeepsHistoricalUnits() {
         var project = ReviewProject(); let doc = source(); project.documents = [doc]
         var oldPlan = project.plan; oldPlan.variables[0].unit = "old-units"
