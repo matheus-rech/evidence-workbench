@@ -44,6 +44,8 @@ final class WorkspaceStoreTests: XCTestCase {
         project.documents = [document]
         var row = Observation(id: observationID, documentID: document.id, variableID: "age_mean", value: "74.61", citations: [.init(page: 1, quote: text, exactMatch: true)], status: .verified, reviewer: "QA", model: "extractor", planVersion: observationVersion)
         row.sourceAdjudication = "Reviewer checked the control column of Table 1."
+        if observationVersion != planVersion { project.planHistory = [.init(date: Date(), reason: "Fixture amendment", plan: approvedPlan(version: observationVersion))] }
+        row = try ReviewEngine.verify(row, variable: project.plan.variables.first { $0.id == row.variableID }!, reviewer: "QA", document: document)
         project.observations = [row]
         _ = try await repository.save(project)
         let store = WorkspaceStore(root: root, client: OpenAIClient(transport: transport), cloud: CloudAccess(isEnabled: { true }, apiKey: { "test-not-a-real-key" }))

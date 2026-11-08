@@ -77,6 +77,7 @@ public enum ReviewEngine {
         var copy = observation
         let valueChanged = copy.value != value || copy.missingness != missingness || copy.context != context
         copy.value = value; copy.missingness = missingness; copy.context = context; copy.note = note
+        copy.verificationFingerprint = nil
         copy.status = .edited; copy.confidence = nil; copy.reviewer = ""; copy.updatedAt = Date()
         if valueChanged { copy.citations = [] }
         if valueChanged || note != observation.note { copy.sourceCheck = nil; copy.sourceAdjudication = nil }
@@ -85,8 +86,9 @@ public enum ReviewEngine {
 
     public static func verify(_ observation: Observation, variable: VariableDefinition, reviewer: String, document: SourceDocument) throws -> Observation {
         guard !reviewer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw WorkbenchError.invalid("A named reviewer is required for verification.") }
+        guard observation.documentID == document.id, observation.variableID == variable.id else { throw WorkbenchError.invalid("Verification references another source or field.") }
         try validateObservationValue(observation, variable: variable)
-        guard SourceCheckPolicy.resolved(observation) else { throw WorkbenchError.invalid("The AI value needs a supporting independent source check or an explicit reviewer adjudication explaining the disagreement. A matching quotation alone is insufficient.") }
+        guard SourceCheckPolicy.resolved(observation) else { throw WorkbenchError.invalid("Record your source-based review decision for AI-extracted data, even when the AI checker agrees. Check value, units, denominator, group and time point.") }
         var copy = observation
         copy.citations = try observation.citations.map { citation in
             guard let page = document.pages.first(where: { $0.number == citation.page }) else { throw WorkbenchError.invalid("The cited page does not exist.") }
@@ -101,6 +103,7 @@ public enum ReviewEngine {
         if observation.missingness == .reported && copy.citations.isEmpty { throw WorkbenchError.invalid("Reported values need an exact page quotation or a visually checked PDF region before verification.") }
         if observation.missingness != .reported && observation.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { throw WorkbenchError.invalid("Explain the missingness decision in the reviewer note.") }
         copy.status = .verified; copy.reviewer = reviewer; copy.updatedAt = Date()
+        copy.verificationFingerprint = SourceCheckPolicy.evidenceFingerprint(copy, variable: variable, document: document)
         return copy
     }
 
@@ -144,10 +147,10 @@ public enum ReviewEngine {
     }
 
     public static func mergeSuggestions(existing: [Observation], incoming: [Observation], documentID: UUID, planVersion: Int) -> [Observation] {
-        let protected = existing.filter { $0.documentID == documentID && $0.status != .suggested }
+        let protected = existing.filter { $0.documentID == documentID && $0.status != .suggested && $0.status != .aiReviewed }
         let accepted = incoming.filter { row in
             row.documentID == documentID && row.planVersion == planVersion && !protected.contains { $0.variableID == row.variableID && $0.context == row.context }
         }
-        return existing.filter { !($0.documentID == documentID && $0.status == .suggested && $0.planVersion == planVersion) } + accepted
+        return existing.filter { !($0.documentID == documentID && [.suggested, .aiReviewed].contains($0.status) && $0.planVersion == planVersion) } + accepted
     }
 }

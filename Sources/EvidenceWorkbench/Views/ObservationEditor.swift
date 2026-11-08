@@ -52,13 +52,13 @@ struct ObservationEditor: View {
                 Text(variable.definition).font(.caption).foregroundStyle(.secondary)
                 if let valueError { Label(valueError, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange) }
                 if !draft.model.isEmpty && draft.missingness == .reported {
-                    let fresh = draft.sourceCheck?.claimFingerprint == SourceCheckPolicy.fingerprint(draft)
-                    Text("Independent AI source check: \(fresh ? draft.sourceCheck?.verdict.rawValue ?? "pending" : "pending / claim changed")").font(.caption.bold()).foregroundStyle(SourceCheckPolicy.supported(draft) ? .green : .orange)
+                    let fresh = SourceCheckPolicy.fresh(draft, variable: variable, document: document)
+                    Text("Independent AI source check: \(fresh ? draft.sourceCheck?.verdict.rawValue ?? "pending" : "pending / claim changed")").font(.caption.bold()).foregroundStyle(SourceCheckPolicy.supported(draft, variable: variable, document: document) ? .green : .orange)
                     if fresh, let check = draft.sourceCheck { Text(check.reason).font(.caption).textSelection(.enabled) }
                     Button("Run independent source check") { store.checkObservation(observation) }.disabled(store.busy || dirty)
-                    if !SourceCheckPolicy.supported(draft) {
-                        TextField("Reviewer adjudication: explain source support or resolve the disagreement", text: Binding(get: { draft.sourceAdjudication ?? "" }, set: { draft.sourceAdjudication = $0 }), axis: .vertical).lineLimit(2...5).textFieldStyle(.roundedBorder)
-                        Text("Unresolved AI claims are excluded from verified export. AI agreement still requires your value and context check.").font(.caption2).foregroundStyle(.secondary)
+                    if !draft.model.isEmpty {
+                        TextField("Human source review: record value, units, denominator, group and time point", text: Binding(get: { draft.sourceAdjudication ?? "" }, set: { draft.sourceAdjudication = $0 }), axis: .vertical).lineLimit(2...5).textFieldStyle(.roundedBorder)
+                        Text("AI review is available in Automatic mode. Human verification requires your own documented source decision.").font(.caption2).foregroundStyle(.secondary)
                     }
                 }
                 if observation.planVersion != currentPlanVersion { Text("Earlier plan v\(observation.planVersion). Recheck against v\(currentPlanVersion) before verification.").font(.caption).foregroundStyle(.orange) }

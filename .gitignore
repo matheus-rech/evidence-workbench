@@ -10,3 +10,8 @@ LocalData/
 .codex/
 ValidationSources/
 ValidationReport/
+
+# Isolated review runtime and Python checks
+ReviewData/
+__pycache__/
+*.pyc

@@ -17,7 +17,7 @@ struct ContentView: View {
         NavigationSplitView {
             VStack(alignment: .leading, spacing: 16) {
                 Label("Evidence Workbench", systemImage: "books.vertical.fill").font(.headline).padding(.horizontal, 14).padding(.top, 12)
-                if Bundle.main.bundleIdentifier?.hasSuffix(".QA") == true { Text("QA TEST COPY · separate review files").font(.caption.bold()).foregroundStyle(.orange).padding(.horizontal, 14) }
+                if Bundle.main.object(forInfoDictionaryKey: "EWIsolatedReview") as? Bool == true || Bundle.main.bundleIdentifier?.hasSuffix(".QA") == true { Text("ISOLATED REVIEW · separate data and preferences").font(.caption.bold()).foregroundStyle(.orange).padding(.horizontal, 14) }
                 VStack(alignment: .leading, spacing: 8) {
                     Text("REVIEW WORKSPACE").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                     Picker("Review", selection: projectSelection) {
@@ -113,7 +113,7 @@ struct ContentView: View {
             statusPill(project.plan.readyForArticles ? "Plan approved" : "Define & approve plan", symbol: project.plan.readyForArticles ? "checkmark.seal.fill" : "pencil.and.outline", color: project.plan.readyForArticles ? .green : .orange)
             VStack(alignment: .trailing, spacing: 4) {
                 Text("\(project.documents.count) reports · \(Set(project.documents.map(\.studyID)).count) studies").font(.callout)
-                Text("\(project.observations.filter { $0.status == .verified && $0.planVersion == project.plan.version && SourceCheckPolicy.resolved($0) }.count) verified observations ready to export").font(.caption).foregroundStyle(.secondary)
+                Text("\(project.observations.filter { VerificationPolicy.exportable($0, project: project) }.count) verified observations ready to export").font(.caption).foregroundStyle(.secondary)
             }
         }.padding(.horizontal, 24).padding(.vertical, 18)
     }

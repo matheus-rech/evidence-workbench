@@ -38,6 +38,7 @@ final class RegionEvidenceTests: XCTestCase {
         let source = SourceDocument(filename: "scan.pdf", relativePath: "scan.pdf", sha256: "fixture", pages: [.init(number: 1, text: "")])
         project.documents = [source]
         project.observations = [.init(documentID: source.id, variableID: "age_mean", value: "42", citations: [.init(page: 1, quote: "42", region: .init(x: 0.2, y: 0.3, width: 0.1, height: 0.05), visuallyVerified: true)], status: .verified)]
+        project.observations[0] = try ReviewEngine.verify(project.observations[0], variable: project.plan.variables.first { $0.id == "age_mean" }!, reviewer: "QA", document: source)
         let csv = DatasetExporter.longCSV(project, verifiedOnly: true)
         XCTAssertTrue(csv.contains("source_regions_normalized")); XCTAssertTrue(csv.contains("visual_source_checked"))
         XCTAssertTrue(csv.contains("x=0.2;y=0.3;width=0.1;height=0.05"))

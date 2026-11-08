@@ -30,6 +30,15 @@ public actor ProjectRepository {
         return Listing(projects: projects.sorted { $0.updatedAt > $1.updatedAt }, failures: failures.sorted())
     }
 
+    public func automationDirectory(projectID: UUID) throws -> URL {
+        let base = directory(for: projectID).resolvingSymlinksInPath()
+        let exports = base.appendingPathComponent("exports", isDirectory: true)
+        guard exports.resolvingSymlinksInPath().path == exports.path else { throw WorkbenchError.invalid("Export directory cannot be a symbolic link.") }
+        let folder = exports.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder
+    }
+
     public func directory(for id: UUID) -> URL { root.appendingPathComponent(id.uuidString, isDirectory: true) }
 
     public func save(_ project: ReviewProject) throws -> ReviewProject {
@@ -116,6 +125,6 @@ public actor ProjectRepository {
             guard let document = project.documents.first(where: { $0.id == asset.documentID }) else { throw WorkbenchError.invalid("A source asset references a missing report.") }
             try asset.validate(document: document)
         }
-        return project
+        return try VerificationPolicy.validate(project)
     }
 }

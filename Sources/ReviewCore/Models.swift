@@ -142,7 +142,7 @@ public struct SourceDocument: Identifiable, Codable, Equatable, Sendable {
     public var hasText: Bool { pages.contains { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } }
 }
 public enum ObservationStatus: String, CaseIterable, Codable, Sendable {
-    case suggested, edited, verified, rejected
+    case suggested, edited, verified, rejected, aiReviewed
 }
 public enum Missingness: String, CaseIterable, Codable, Sendable {
     case reported, notReported, notApplicable, unclear
@@ -209,6 +209,7 @@ public struct Observation: Identifiable, Codable, Equatable, Sendable {
     public var model: String
     public var sourceCheck: SourceCheck?
     public var sourceAdjudication: String?
+    public var verificationFingerprint: String?
     public var planVersion: Int
     public var updatedAt: Date
     public init(id: UUID = UUID(), documentID: UUID, variableID: String, value: String = "", missingness: Missingness = .reported, context: ObservationContext = .init(), citations: [EvidenceCitation] = [], confidence: Int? = nil, status: ObservationStatus = .suggested, reviewer: String = "", note: String = "", model: String = "", planVersion: Int = 1) {
@@ -222,6 +223,7 @@ public struct Observation: Identifiable, Codable, Equatable, Sendable {
         confidence = try c.decodeIfPresent(Int.self, forKey: .confidence); status = try c.value(ObservationStatus.self, .status, or: .suggested)
         reviewer = try c.value(String.self, .reviewer, or: ""); note = try c.value(String.self, .note, or: ""); model = try c.value(String.self, .model, or: "")
         sourceCheck = try c.decodeIfPresent(SourceCheck.self, forKey: .sourceCheck); sourceAdjudication = try c.decodeIfPresent(String.self, forKey: .sourceAdjudication)
+        verificationFingerprint = try c.decodeIfPresent(String.self, forKey: .verificationFingerprint)
         planVersion = try c.value(Int.self, .planVersion, or: 1); updatedAt = try c.value(Date.self, .updatedAt, or: Date())
     }
 }

@@ -3,7 +3,7 @@ import Security
 import ReviewCore
 
 enum KeychainStore {
-    private static let service = "com.matheusrech.EvidenceWorkbench.openai"
+    private static var service: String { Bundle.main.object(forInfoDictionaryKey: "EWIsolatedReview") as? Bool == true ? "com.matheusrech.EvidenceWorkbench.Review.openai" : "com.matheusrech.EvidenceWorkbench.openai" }
     private static let account = "api-key"
     private static var query: [String: Any] { [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account] }
     static func read() throws -> String {
