@@ -2,6 +2,13 @@ import Foundation
 import Combine
 import ReviewCore
 
+/// How the store learns whether cloud AI is allowed and which credential to send. Injected so tests never touch Keychain or user defaults.
+struct CloudAccess: Sendable {
+    var isEnabled: @Sendable () -> Bool
+    var apiKey: @Sendable () throws -> String
+    static let live = CloudAccess(isEnabled: { UserDefaults.standard.bool(forKey: "cloudAIEnabled") }, apiKey: { try AppCredentials.read() })
+}
+
 @MainActor final class WorkspaceStore: ObservableObject {
     @Published private(set) var projects: [ReviewProject] = []
     @Published var selectedProjectID: UUID?
@@ -16,8 +23,10 @@ import ReviewCore
     var hasUnsavedChanges: Bool { hasUnsavedPlan || hasUnsavedObservation }
     @Published private(set) var activeResearch: Set<UUID> = []
     let repository: ProjectRepository
-    let client = OpenAIClient()
-    private var operation: Task<Void, Never>?
+    let client: OpenAIClient
+    private let cloud: CloudAccess
+    /// The foreground operation started by `perform`; exposed so tests can await completion.
+    private(set) var operation: Task<Void, Never>?
     private var researchTasks: [UUID: Task<Void, Never>] = [:]
     private var saveTail: Task<Void, Never>?
 
@@ -26,7 +35,8 @@ import ReviewCore
     var researchModel: String { UserDefaults.standard.string(forKey: "researchModel") ?? "o3" }
     var sourceCheckModel: String { UserDefaults.standard.string(forKey: "sourceCheckModel") ?? "gpt-4.1" }
 
-    init(root: URL? = nil) {
+    init(root: URL? = nil, client: OpenAIClient = OpenAIClient(), cloud: CloudAccess = .live) {
+        self.client = client; self.cloud = cloud
         let args = ProcessInfo.processInfo.arguments
         let argumentRoot: URL? = args.firstIndex(of: "--workspace").flatMap { index in index + 1 < args.count ? URL(fileURLWithPath: args[index + 1]) : nil }
         let normal = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("EvidenceWorkbench/Reviews", isDirectory: true)
@@ -42,7 +52,7 @@ import ReviewCore
         guard !loadedOnce else { return }
         loadedOnce = true; loading = true
         defer { loading = false }
-        do { projects = try await repository.list(); selectedProjectID = projects.first?.id }
+        do { projects = try await repository.list().projects; selectedProjectID = projects.first?.id }
         catch { errorMessage = "Review files could not be loaded: " + error.localizedDescription; loadedOnce = false }
     }
 
@@ -79,8 +89,8 @@ import ReviewCore
     }
 
     private func credential() throws -> String {
-        guard UserDefaults.standard.bool(forKey: "cloudAIEnabled") else { throw WorkbenchError.invalid("Enable cloud AI in Settings to send selected document text or research questions to OpenAI. Offline planning, manual extraction and export work without it.") }
-        let key = try AppCredentials.read()
+        guard cloud.isEnabled() else { throw WorkbenchError.invalid("Enable cloud AI in Settings to send selected document text or research questions to OpenAI. Offline planning, manual extraction and export work without it.") }
+        let key = try cloud.apiKey()
         guard !key.isEmpty else { throw WorkbenchError.missingKey }
         return key
     }

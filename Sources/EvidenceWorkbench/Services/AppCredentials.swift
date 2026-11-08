@@ -10,9 +10,12 @@ enum AppCredentials {
         let local = Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent(".env.local")
         return FileManager.default.fileExists(atPath: local.path) ? local : nil
     }
-    static func read() throws -> String {
-        if let url = keyFileURL { return try LocalKeyFile.read(url) }
-        let key = try KeychainStore.read()
+    static func read() throws -> String { try resolve(fileURL: keyFileURL, keychain: KeychainStore.read) }
+
+    /// Precedence between a configured key file and the Keychain entry.
+    static func resolve(fileURL: URL?, keychain: () throws -> String) throws -> String {
+        if let url = fileURL { return try LocalKeyFile.read(url) }
+        let key = try keychain()
         guard !key.isEmpty else { throw WorkbenchError.missingKey }
         return key
     }

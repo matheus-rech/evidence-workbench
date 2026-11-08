@@ -4,10 +4,13 @@ public protocol ResponsesTransport: Sendable {
     func send(_ request: URLRequest) async throws -> (Data, Int, String?)
 }
 public struct URLSessionTransport: ResponsesTransport, @unchecked Sendable {
+    /// Idle limit between bytes. A non-streaming Responses call sends nothing until generation finishes.
+    public static let requestTimeout: TimeInterval = 120
+    public static let resourceTimeout: TimeInterval = 300
     private let session: URLSession
     public init() {
         let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = 120; config.timeoutIntervalForResource = 300
+        config.timeoutIntervalForRequest = Self.requestTimeout; config.timeoutIntervalForResource = Self.resourceTimeout
         self.session = URLSession(configuration: config)
     }
     public func send(_ request: URLRequest) async throws -> (Data, Int, String?) {

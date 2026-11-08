@@ -133,6 +133,13 @@ public enum ReviewEngine {
         }
     }
 
+    /// Explicit absence suggestions for variables that this extraction run did not return.
+    public static func absenceSuggestions(variables: [VariableDefinition], consolidated: [Observation], existing: [Observation], documentID: UUID, pagesIncomplete: Bool, model: String, planVersion: Int) -> [Observation] {
+        variables.filter { field in !consolidated.contains { $0.variableID == field.id } }.map { field in
+            Observation(documentID: documentID, variableID: field.id, missingness: pagesIncomplete ? .unclear : .notReported, confidence: 0, note: pagesIncomplete ? "Not found in available text; some pages were unreadable. Review the original." : "Not found by AI across the supplied pages. A reviewer must confirm absence.", model: model, planVersion: planVersion)
+        }
+    }
+
     public static func mergeSuggestions(existing: [Observation], incoming: [Observation], documentID: UUID, planVersion: Int) -> [Observation] {
         let protected = existing.filter { $0.documentID == documentID && $0.status != .suggested }
         let accepted = incoming.filter { row in

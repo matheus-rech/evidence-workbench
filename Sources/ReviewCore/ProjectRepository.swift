@@ -12,12 +12,20 @@ public actor ProjectRepository {
         self.encoder = JSONEncoder(); self.encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
     }
 
-    public func list() throws -> [ReviewProject] {
+    /// Readable reviews plus one line per review directory that could not be opened.
+    public struct Listing: Sendable {
+        public var projects: [ReviewProject]
+        public var failures: [String]
+        public init(projects: [ReviewProject], failures: [String]) { self.projects = projects; self.failures = failures }
+    }
+
+    public func list() throws -> Listing {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        return try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
+        let projects = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
             .filter { UUID(uuidString: $0.lastPathComponent) != nil }
             .map { try loadFile($0.appendingPathComponent("project.json")) }
             .sorted { $0.updatedAt > $1.updatedAt }
+        return Listing(projects: projects, failures: [])
     }
 
     public func directory(for id: UUID) -> URL { root.appendingPathComponent(id.uuidString, isDirectory: true) }
