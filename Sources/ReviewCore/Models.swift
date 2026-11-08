@@ -216,7 +216,7 @@ public struct Observation: Identifiable, Codable, Equatable, Sendable {
     }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.value(UUID.self, .id, or: UUID()); documentID = try c.decode(UUID.self, forKey: .documentID); variableID = try c.decode(String.self, forKey: .variableID)
+        id = try c.decode(UUID.self, forKey: .id); documentID = try c.decode(UUID.self, forKey: .documentID); variableID = try c.decode(String.self, forKey: .variableID)
         value = try c.value(String.self, .value, or: ""); missingness = try c.value(Missingness.self, .missingness, or: .reported)
         context = try c.value(ObservationContext.self, .context, or: ObservationContext()); citations = try c.value([EvidenceCitation].self, .citations, or: [])
         confidence = try c.decodeIfPresent(Int.self, forKey: .confidence); status = try c.value(ObservationStatus.self, .status, or: .suggested)
@@ -301,7 +301,8 @@ public struct ReviewProject: Identifiable, Codable, Equatable, Sendable {
     public init(title: String = "Untitled review") { self.title = title }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.value(UUID.self, .id, or: UUID()); title = try c.value(String.self, .title, or: "Untitled review")
+        // The id names the review's folder; minting one would save the review elsewhere or block every save.
+        id = try c.decode(UUID.self, forKey: .id); title = try c.value(String.self, .title, or: "Untitled review")
         schemaVersion = try c.value(Int.self, .schemaVersion, or: 1); revision = try c.value(Int.self, .revision, or: 0); updatedAt = try c.value(Date.self, .updatedAt, or: Date())
         plan = try c.value(ReviewPlan.self, .plan, or: ReviewPlan()); planHistory = try c.value([PlanSnapshot].self, .planHistory, or: [])
         protocols = try c.value([SourceDocument].self, .protocols, or: []); documents = try c.value([SourceDocument].self, .documents, or: [])
