@@ -7,6 +7,7 @@ struct SettingsView: View {
     @AppStorage("researchModel") private var researchModel = "o3"
     @AppStorage("sourceCheckModel") private var sourceCheckModel = "gpt-4.1"
     @AppStorage("visualExtraction") private var visualExtraction = true
+    @AppStorage("apiKeyFile") private var keyFilePreference = ""
     @State private var key = ""
     @State private var message = ""
     @State private var checking = false
@@ -19,12 +20,17 @@ struct SettingsView: View {
             }
             Section("Cloud AI") {
                 if let file = AppCredentials.keyFileURL {
-                    Text("Local credential file configured: \(file.lastPathComponent)").font(.caption).foregroundStyle(.secondary)
+                    Text("Credential source: local key file \(file.lastPathComponent). It takes precedence; the Keychain entry is used only if this file lacks OPENAI_API_KEY.").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("Credential source: macOS Keychain.").font(.caption).foregroundStyle(.secondary)
                 }
                 HStack {
                     Button("Choose local key file…") {
                         let panel = NSOpenPanel(); panel.canChooseDirectories = false; panel.showsHiddenFiles = true; panel.message = "Choose the approved OPENAI_API_KEY env file. Its contents will not be copied or displayed."
-                        if panel.runModal() == .OK, let url = panel.url { UserDefaults.standard.set(url.path, forKey: "apiKeyFile"); message = "Local key file configured." }
+                        if panel.runModal() == .OK, let url = panel.url { UserDefaults.standard.set(url.path, forKey: "apiKeyFile"); keyFilePreference = url.path; message = "Local key file configured." }
+                    }
+                    if !keyFilePreference.isEmpty {
+                        Button("Use Keychain instead") { UserDefaults.standard.removeObject(forKey: "apiKeyFile"); keyFilePreference = ""; message = "Key file preference removed. The Keychain entry (or a .env.local beside a source build) is used." }
                     }
                     Button(checking ? "Checking…" : "Check OpenAI connection") {
                         checking = true
@@ -32,7 +38,7 @@ struct SettingsView: View {
                     }.disabled(checking)
                 }
                 Toggle("Allow sending selected content to OpenAI", isOn: $cloudEnabled)
-                Text("Planning sends protocols, the saved plan and recent chat. Extraction sends article page text and definitions. Deep research sends protocols and the saved plan/question, and uses web search plus server-side background storage. Local planning, manual extraction, OCR and export work offline.").font(.caption).foregroundStyle(.secondary)
+                Text("Planning sends protocols, the saved plan and recent chat. Extraction sends article page text, field definitions and, when enabled, page images. The independent source check sends each AI claim (value and context), the cited page text with its neighbours and the same page images. Table and image discovery sends page images; table conversion sends the boxed image. Deep research sends protocols and the saved plan/question, and uses web search plus server-side background storage. Local planning, manual extraction, OCR and export work offline.").font(.caption).foregroundStyle(.secondary)
                 Toggle("Include original PDF page images in extraction", isOn: $visualExtraction)
                 Text("Visual extraction sends up to three page images per batch alongside text. Image-only findings remain unverified until their source can be anchored.").font(.caption).foregroundStyle(.secondary)
                 SecureField("OpenAI API key", text: $key)
@@ -46,7 +52,10 @@ struct SettingsView: View {
                 TextField("Extraction & planning", text: $extractionModel)
                 TextField("Deep research", text: $researchModel)
                 TextField("Independent source checker", text: $sourceCheckModel)
-                Text("Extraction, source checking, asset discovery and table transcription use separate bounded request contexts. The checker can use a different compatible model. Multiple AI passes do not guarantee correctness.").font(.caption).foregroundStyle(.secondary)
+                if sourceCheckModel.trimmingCharacters(in: .whitespaces) == extractionModel.trimmingCharacters(in: .whitespaces) {
+                    Label("The source checker is the same model as the extractor. Its agreement is correlated with the extractor's errors; choose a different compatible model for a more independent check.", systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
+                }
+                Text("Extraction, source checking, asset discovery and table transcription use separate bounded request contexts. The checker receives the claim, the plan definition and unit, and the original source only, never the extractor's note or confidence. Multiple AI passes do not guarantee correctness.").font(.caption).foregroundStyle(.secondary)
                 Button("Load account model list") {
                     checking = true
                     Task {

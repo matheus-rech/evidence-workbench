@@ -52,8 +52,13 @@ struct CloudAccess: Sendable {
         guard !loadedOnce else { return }
         loadedOnce = true; loading = true
         defer { loading = false }
-        do { projects = try await repository.list().projects; selectedProjectID = projects.first?.id }
-        catch { errorMessage = "Review files could not be loaded: " + error.localizedDescription; loadedOnce = false }
+        do {
+            let listing = try await repository.list()
+            projects = listing.projects; selectedProjectID = projects.first?.id
+            if !listing.failures.isEmpty {
+                notice = "\(listing.failures.count) review folder(s) in \(repository.root.path) could not be opened and were left untouched: " + listing.failures.joined(separator: " · ")
+            }
+        } catch { errorMessage = "Review files could not be loaded: " + error.localizedDescription; loadedOnce = false }
     }
 
     func perform(_ label: String, action: @escaping @MainActor () async throws -> Void) {
@@ -68,7 +73,7 @@ struct CloudAccess: Sendable {
     }
     func cancelOperation() { operation?.cancel() }
 
-    func convertTable(documentID: UUID, selection: SourceSelection, completion: @escaping (EditableTable) -> Void) {
+    func convertTable(documentID: UUID, selection: SourceSelection, completion: @escaping (SourceAsset) -> Void) {
         guard let project = current, let document = project.documents.first(where: { $0.id == documentID }), let region = selection.region else { return }
         perform("Transcribing selected table…") {
             let url = try await self.repository.documentURL(document, projectID: project.id)
@@ -84,7 +89,7 @@ struct CloudAccess: Sendable {
                 latest.assets = SourceAsset.merge(existing: latest.assets ?? [], incoming: [asset])
                 latest.audit.append(.init(actor: latest.plan.reviewer, action: "Editable table prepared for review", detail: "\(document.filename), page \(selection.page), \(table.rows.count) rows × \(table.columns.count) columns. Saved in Tables & images, not applied to extracted observations."))
             }
-            completion(table)
+            completion(asset)
         }
     }
 
@@ -201,11 +206,9 @@ struct CloudAccess: Sendable {
             }
             try Task.checkCancellation()
             var consolidated = ReviewEngine.consolidate(staged)
-            consolidated = await self.checkedSuggestions(consolidated, document: document, project: project, sourceURL: sourceURL, key: key)
-            for field in variables where !consolidated.contains(where: { $0.variableID == field.id }) {
-                let incomplete = document.pages.contains { $0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-                consolidated.append(.init(documentID: document.id, variableID: field.id, missingness: incomplete ? .unclear : .notReported, confidence: 0, note: incomplete ? "Not found in available text; some pages were unreadable. Review the original." : "Not found by AI across the supplied pages. A reviewer must confirm absence.", model: model, planVersion: project.plan.version))
-            }
+            consolidated = try await self.checkedSuggestions(consolidated, document: document, project: project, sourceURL: sourceURL, key: key)
+            let incomplete = document.pages.contains { $0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            consolidated += ReviewEngine.absenceSuggestions(variables: variables, consolidated: consolidated, existing: self.current?.observations ?? project.observations, documentID: document.id, pagesIncomplete: incomplete, model: model, planVersion: project.plan.version)
             let incoming = consolidated
             try await self.mutate(project.id) { latest in
                 guard latest.plan.readyForArticles, latest.plan.version == project.plan.version else { throw WorkbenchError.invalid("The plan changed during extraction. The staged results were discarded.") }
@@ -214,7 +217,7 @@ struct CloudAccess: Sendable {
                 latest.observations = merged
                 let supported = incoming.filter { $0.sourceCheck?.verdict == .supported }.count
                 let contradicted = incoming.filter { $0.sourceCheck?.verdict == .contradicted }.count
-                latest.audit.append(.init(actor: latest.plan.reviewer, action: "AI extraction staged for review", detail: "\(document.filename); \(accepted) suggestions saved; \(incoming.count - accepted) skipped to protect reviewed/edited/rejected rows; visual pages: \(visual); model \(model), plan v\(project.plan.version). Separate source checks: \(supported) supported, \(contradicted) contradicted. Model support is not human verification."))
+                latest.audit.append(.init(actor: latest.plan.reviewer, action: "AI extraction staged for review", detail: "\(document.filename); \(accepted) suggestions saved; \(incoming.count - accepted) skipped to protect reviewed/edited/rejected rows; visual pages: \(visual); extraction model \(model), source-check model \(self.sourceCheckModel)\(model == self.sourceCheckModel ? " (same model as the extractor; agreement is correlated)" : ""), plan v\(project.plan.version). Separate source checks: \(supported) supported, \(contradicted) contradicted. Model support is not human verification."))
             }
             self.notice = "Extraction saved as suggestions. Human verification is required."
             let includeAssets = UserDefaults.standard.object(forKey: "extractAssets") as? Bool ?? true
@@ -228,7 +231,10 @@ struct CloudAccess: Sendable {
         }
     }
 
-    private func checkedSuggestions(_ rows: [Observation], document: SourceDocument, project: ReviewProject, sourceURL: URL, key: String) async -> [Observation] {
+    /// Runs the separate source-check pass. During a bulk extraction a failed batch is recorded as `unclear` so the run can
+    /// finish; for a single reviewer-requested check (`tolerateFailures == false`) the error is thrown instead, because a
+    /// failed request is not a verdict.
+    private func checkedSuggestions(_ rows: [Observation], document: SourceDocument, project: ReviewProject, sourceURL: URL, key: String, tolerateFailures: Bool = true) async throws -> [Observation] {
         var result = rows
         let groups = Dictionary(grouping: rows.indices.filter { rows[$0].missingness == .reported }, by: { rows[$0].citations.first?.page ?? 0 })
         for page in groups.keys.sorted() {
@@ -248,6 +254,7 @@ struct CloudAccess: Sendable {
                         result[index].sourceCheck = .init(verdict: check.verdict, reason: check.reason, quote: check.source_quote, model: sourceCheckModel, claimFingerprint: SourceCheckPolicy.fingerprint(result[index]))
                     }
                 } catch {
+                    guard tolerateFailures else { throw error }
                     for index in selected {
                         result[index].sourceCheck = .init(verdict: .unclear, reason: error is CancellationError ? "Source checking cancelled." : "Source check could not complete: " + error.localizedDescription, model: sourceCheckModel, claimFingerprint: SourceCheckPolicy.fingerprint(result[index]))
                     }
@@ -257,18 +264,20 @@ struct CloudAccess: Sendable {
         return result
     }
 
+    /// Records a fresh AI verdict on one saved claim. The verdict informs the reviewer: it never changes review status,
+    /// reviewer, adjudication text or plan version. Verified-only export already excludes unresolved AI claims.
     func checkObservation(_ observation: Observation) {
         guard let project = current, let document = project.documents.first(where: { $0.id == observation.documentID }) else { return }
         perform("Checking the selected claim against its original source…") {
             let key = try self.credential(); let url = try await self.repository.documentURL(document, projectID: project.id)
-            let checked = await self.checkedSuggestions([observation], document: document, project: project, sourceURL: url, key: key)[0]
+            let checked = try await self.checkedSuggestions([observation], document: document, project: project, sourceURL: url, key: key, tolerateFailures: false)[0]
+            guard let verdict = checked.sourceCheck else { throw WorkbenchError.invalid("The source checker returned no verdict for this claim.") }
             try await self.mutate(project.id) { latest in
                 guard let index = latest.observations.firstIndex(where: { $0.id == observation.id }), SourceCheckPolicy.fingerprint(latest.observations[index]) == SourceCheckPolicy.fingerprint(observation) else { throw WorkbenchError.invalid("The claim changed while its source was checked. Check the saved value again.") }
-                latest.observations[index].sourceCheck = checked.sourceCheck
-                latest.observations[index].planVersion = latest.plan.version
-                if !SourceCheckPolicy.supported(checked) { latest.observations[index].status = .edited; latest.observations[index].reviewer = ""; latest.observations[index].sourceAdjudication = nil }
+                let previous = latest.observations[index]
+                latest.observations[index].sourceCheck = verdict
                 latest.observations[index].updatedAt = Date()
-                latest.audit.append(.init(actor: latest.plan.reviewer, action: "Independent AI source check", detail: "\(observation.id): \(checked.sourceCheck?.verdict.rawValue ?? "unclear"). AI support is not human verification."))
+                latest.audit.append(.init(actor: latest.plan.reviewer, action: "Independent AI source check", detail: "\(observation.id): \(verdict.verdict.rawValue) by \(verdict.model). Review status \(previous.status.rawValue), plan v\(previous.planVersion) and reviewer adjudication (\(previous.sourceAdjudication == nil ? "none" : "retained")) unchanged. AI support is not human verification; unresolved claims stay out of the verified export."))
             }
         }
     }
@@ -418,7 +427,13 @@ struct CloudAccess: Sendable {
             let updated = try await self.mutate(project.id) { $0.messages.append(.init(role: "user", text: question)) }
             if deepResearch {
                 guard updated.researchJob == nil else { throw WorkbenchError.invalid("This review already has a research job. Resume or cancel it first.") }
-                let job = try await self.client.startResearch(project: updated, question: question, model: self.researchModel, apiKey: key)
+                let job: ResearchJob
+                do { job = try await self.client.startResearch(project: updated, question: question, model: self.researchModel, apiKey: key) }
+                catch {
+                    // Leave the chat self-explanatory instead of an unanswered user turn.
+                    try? await self.mutate(project.id) { $0.messages.append(.init(role: "assistant", text: "Deep research could not start: \(error.localizedDescription) No job was created and no variables were proposed.")) }
+                    throw error
+                }
                 do {
                     try await self.mutate(project.id) { latest in
                         latest.researchJob = job

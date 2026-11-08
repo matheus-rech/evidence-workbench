@@ -21,7 +21,7 @@ struct SourceReader: View {
     @State private var sourceStatus = ""
     @State private var drawRegion = false
     @State private var selectedArea: SourceSelection?
-    @State private var table: EditableTable?
+    @State private var convertedAsset: SourceAsset?
     @State private var tableImage: Data?
     @State private var imagePage = 1
     @State private var navigation: SourceSelection?
@@ -55,7 +55,7 @@ struct SourceReader: View {
                             Task {
                                 do { tableImage = try await RegionExport.image(url: url, pageNumber: area.page, region: area.region) }
                                 catch { store.errorMessage = error.localizedDescription; return }
-                                store.convertTable(documentID: document.id, selection: area) { table = $0 }
+                                store.convertTable(documentID: document.id, selection: area) { convertedAsset = $0 }
                             }
                         }.disabled(selectedArea?.region == nil)
                     }.font(.caption).disabled(store.busy)
@@ -88,7 +88,12 @@ struct SourceReader: View {
             Divider()
             Text(drawRegion && !showText ? "Drag a box around one data cell or figure region on a single page. Attach it to the selected observation, transcribe the data and check its units, group and time point." : "Select PDF text for an exact quote, or use Draw data box in the PDF view for image evidence. Boxes are stored with the observation; the original PDF is not modified.").font(.caption2).foregroundStyle(.secondary).padding(10)
         }
-        .sheet(item: $table) { TableExportView(table: $0, sourceImage: tableImage) }
+        .sheet(item: $convertedAsset) { asset in
+            if let table = asset.table {
+                // Edits made here persist to the same Tables & images entry that convertTable created.
+                TableExportView(table: table, sourceImage: tableImage, onSave: { edited in var value = asset; value.table = edited; value.title = edited.title; store.saveAsset(value, reviewed: true) })
+            }
+        }
         .onChange(of: focus) { _, value in
             navigation = nil; selectedArea = value?.region == nil ? nil : value
             if let value { imagePage = value.page }

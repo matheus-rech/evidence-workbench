@@ -4,9 +4,11 @@ public protocol ResponsesTransport: Sendable {
     func send(_ request: URLRequest) async throws -> (Data, Int, String?)
 }
 public struct URLSessionTransport: ResponsesTransport, @unchecked Sendable {
-    /// Idle limit between bytes. A non-streaming Responses call sends nothing until generation finishes.
-    public static let requestTimeout: TimeInterval = 120
-    public static let resourceTimeout: TimeInterval = 300
+    /// Idle limit between bytes. A non-streaming Responses call sends nothing until generation finishes, and a
+    /// 16,000-token structured extraction with page images can take well over two minutes, so the idle limit must
+    /// cover a whole generation; the README promises no automatic retry of ambiguous transport failures.
+    public static let requestTimeout: TimeInterval = 600
+    public static let resourceTimeout: TimeInterval = 900
     private let session: URLSession
     public init() {
         let config = URLSessionConfiguration.ephemeral
@@ -144,7 +146,12 @@ public actor OpenAIClient {
             "observation_id": Schema.enumeration(observations.map { $0.id.uuidString }),
             "verdict": Schema.enumeration(SourceCheckVerdict.allCases.map(\.rawValue)), "reason": Schema.string, "source_quote": Schema.string
         ]))])
-        let claims = observations.map { row in ["id": row.id.uuidString, "field": variables.first { $0.id == row.variableID }?.definition ?? row.variableID, "value": row.value, "context": row.context.summary, "units_and_note": String(row.note.prefix(2_000))] }
+        // The claim is the value and its context. The extractor's free-text note carries its reasoning and is withheld so
+        // the checker reads the source, not the first model's explanation; the unit comes from the approved plan.
+        let claims = observations.map { row in
+            let definition = variables.first { $0.id == row.variableID }
+            return ["id": row.id.uuidString, "field": definition?.definition ?? row.variableID, "unit": definition?.unit ?? "", "value": row.value, "context": row.context.summary]
+        }
         let claimText = String(data: try JSONEncoder().encode(claims), encoding: .utf8)!
         let sourceText = pages.map { "PAGE \($0.number):\n\($0.text)" }.joined(separator: "\n")
         var content: [[String: Any]] = [["type": "input_text", "text": "UNVERIFIED CLAIMS:\n\(claimText)\nORIGINAL SOURCE TEXT:\n\(sourceText)"]]
@@ -173,7 +180,9 @@ public actor OpenAIClient {
         properties["value"] = Schema.enumeration([""])
         let missing = Schema.object(properties)
         let schema: [String: Any] = Schema.object(["observations": Schema.array(["anyOf": [reported, missing]])])
-        let context = String(data: try JSONEncoder().encode(plan), encoding: .utf8)!
+        // The VARIABLES section carries this batch's definitions; the plan context must not resend the whole dictionary.
+        var planContext = plan; planContext.variables = []
+        let context = String(data: try JSONEncoder().encode(planContext), encoding: .utf8)!
         let fields = String(data: try JSONEncoder().encode(variables), encoding: .utf8)!
         let pagesText = pages.map { "[PAGE \($0.number)\($0.ocr ? "; OCR transcription" : "")]\n\($0.text)" }.joined(separator: "\n\n")
         let instructions = """

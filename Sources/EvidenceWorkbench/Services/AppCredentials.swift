@@ -12,12 +12,20 @@ enum AppCredentials {
     }
     static func read() throws -> String { try resolve(fileURL: keyFileURL, keychain: KeychainStore.read) }
 
-    /// Precedence between a configured key file and the Keychain entry.
+    /// A configured key file wins when it holds the variable; otherwise the Keychain entry is used. Only when neither
+    /// has a key is the file's own error (missing variable, symlink, size) reported.
     static func resolve(fileURL: URL?, keychain: () throws -> String) throws -> String {
-        if let url = fileURL { return try LocalKeyFile.read(url) }
-        let key = try keychain()
-        guard !key.isEmpty else { throw WorkbenchError.missingKey }
-        return key
+        guard let url = fileURL else {
+            let key = try keychain()
+            guard !key.isEmpty else { throw WorkbenchError.missingKey }
+            return key
+        }
+        do { return try LocalKeyFile.read(url) }
+        catch {
+            let fallback = (try? keychain()) ?? ""
+            guard !fallback.isEmpty else { throw error }
+            return fallback
+        }
     }
     static func checkConnection() async -> String {
         do {

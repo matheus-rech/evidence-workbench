@@ -13,7 +13,8 @@ final class LegacyDecodingTests: XCTestCase {
          "documents":[{"id":"\(documentID.uuidString)","filename":"a.pdf","relativePath":"documents/abc.pdf","sha256":"abc","pages":[{"number":1,"text":"Mean 68.5"}]}],
          "observations":[{"id":"\(UUID().uuidString)","documentID":"\(documentID.uuidString)","variableID":"title","value":"Study","citations":[{"page":1,"quote":"Mean 68.5"}]}],
          "messages":[{"id":"\(UUID().uuidString)","role":"assistant","text":"Welcome"}],
-         "proposals":[{"id":"\(UUID().uuidString)","summary":"S","variables":[]}]}
+         "proposals":[{"id":"\(UUID().uuidString)","summary":"S","variables":[]}],
+         "assets":[{"id":"\(UUID().uuidString)","documentID":"\(documentID.uuidString)","sourceSHA256":"abc","page":1,"kind":"table","label":"Table 1","title":"Baseline","region":{"x":0,"y":0,"width":1,"height":1}}]}
         """
     }
     func testProjectWithoutLaterKeysDecodesWithDefaults() throws {
@@ -27,7 +28,9 @@ final class LegacyDecodingTests: XCTestCase {
         XCTAssertEqual(project.plan.variables.first?.type, .text)
         XCTAssertEqual(project.plan.variables.first?.unit, "")
         XCTAssertTrue(project.planHistory.isEmpty); XCTAssertTrue(project.protocols.isEmpty); XCTAssertTrue(project.audit.isEmpty)
-        XCTAssertNil(project.assets); XCTAssertNil(project.researchJob)
+        XCTAssertNil(project.researchJob)
+        let asset = try XCTUnwrap(project.assets?.first)
+        XCTAssertEqual(asset.origin, "AI discovery"); XCTAssertTrue(asset.warnings.isEmpty); XCTAssertEqual(asset.caption, ""); XCTAssertFalse(asset.exactCrop); XCTAssertNil(asset.table)
         let document = try XCTUnwrap(project.documents.first)
         XCTAssertEqual(document.peerReviewStatus, "Unconfirmed"); XCTAssertTrue(document.warnings.isEmpty)
         XCTAssertFalse(document.pages[0].ocr)

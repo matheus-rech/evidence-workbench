@@ -23,6 +23,15 @@ public struct SourceAsset: Codable, Equatable, Sendable, Identifiable {
         self.documentID = documentID; self.sourceSHA256 = sourceSHA256; self.page = page; self.kind = kind
         self.label = label; self.title = title; self.caption = caption; self.region = region; self.exactCrop = exactCrop; self.table = table; self.warnings = warnings; self.origin = origin
     }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.value(UUID.self, .id, or: UUID()); documentID = try c.decode(UUID.self, forKey: .documentID); sourceSHA256 = try c.decode(String.self, forKey: .sourceSHA256)
+        page = try c.decode(Int.self, forKey: .page); kind = try c.decode(SourceAssetKind.self, forKey: .kind); label = try c.decode(String.self, forKey: .label)
+        title = try c.value(String.self, .title, or: ""); caption = try c.value(String.self, .caption, or: "")
+        region = try c.value(EvidenceRegion.self, .region, or: .init(x: 0, y: 0, width: 1, height: 1)); exactCrop = try c.value(Bool.self, .exactCrop, or: false)
+        table = try c.decodeIfPresent(EditableTable.self, forKey: .table); warnings = try c.value([String].self, .warnings, or: []); origin = try c.value(String.self, .origin, or: "AI discovery")
+        reviewedBy = try c.decodeIfPresent(String.self, forKey: .reviewedBy); reviewedAt = try c.decodeIfPresent(Date.self, forKey: .reviewedAt); excluded = try c.decodeIfPresent(Bool.self, forKey: .excluded)
+    }
     public var sourceKey: String { "\(documentID)|\(page)|\(kind.rawValue)|" + label.lowercased().filter { $0.isLetter || $0.isNumber } }
     public func validate(document: SourceDocument) throws {
         guard documentID == document.id, sourceSHA256 == document.sha256,
