@@ -25,7 +25,7 @@ public struct SourceAsset: Codable, Equatable, Sendable, Identifiable {
     }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.value(UUID.self, .id, or: UUID()); documentID = try c.decode(UUID.self, forKey: .documentID); sourceSHA256 = try c.decode(String.self, forKey: .sourceSHA256)
+        id = try c.decode(UUID.self, forKey: .id); documentID = try c.decode(UUID.self, forKey: .documentID); sourceSHA256 = try c.decode(String.self, forKey: .sourceSHA256)
         page = try c.decode(Int.self, forKey: .page); kind = try c.decode(SourceAssetKind.self, forKey: .kind); label = try c.decode(String.self, forKey: .label)
         title = try c.value(String.self, .title, or: ""); caption = try c.value(String.self, .caption, or: "")
         region = try c.value(EvidenceRegion.self, .region, or: .init(x: 0, y: 0, width: 1, height: 1)); exactCrop = try c.value(Bool.self, .exactCrop, or: false)

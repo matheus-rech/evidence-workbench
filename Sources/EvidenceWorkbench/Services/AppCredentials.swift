@@ -12,8 +12,8 @@ enum AppCredentials {
     }
     static func read() throws -> String { try resolve(fileURL: keyFileURL, keychain: KeychainStore.read) }
 
-    /// A configured key file wins when it holds the variable; otherwise the Keychain entry is used. Only when neither
-    /// has a key is the file's own error (missing variable, symlink, size) reported.
+    /// A configured key file wins when it holds the variable. If the file is readable but lacks OPENAI_API_KEY, the
+    /// Keychain entry is used. Any other file error (missing, symlink, oversized) is reported, never bypassed.
     static func resolve(fileURL: URL?, keychain: () throws -> String) throws -> String {
         guard let url = fileURL else {
             let key = try keychain()
@@ -21,9 +21,11 @@ enum AppCredentials {
             return key
         }
         do { return try LocalKeyFile.read(url) }
-        catch {
-            let fallback = (try? keychain()) ?? ""
-            guard !fallback.isEmpty else { throw error }
+        catch WorkbenchError.missingKey {
+            // Only a readable file without the variable falls back. A deleted, moved, symlinked or oversized file is
+            // reported, so a different account's Keychain key is never used without the user knowing.
+            let fallback = try keychain()
+            guard !fallback.isEmpty else { throw WorkbenchError.missingKey }
             return fallback
         }
     }
