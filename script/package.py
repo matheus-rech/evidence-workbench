@@ -36,6 +36,9 @@ def package():
                 archive.writestr(info,data,compress_type=ZIP_DEFLATED)
                 manifest.append({'path':str(relative),'sha256':hashlib.sha256(data).hexdigest()})
             archive.writestr('EvidenceWorkbenchReview/PACKAGE-MANIFEST.json',json.dumps(manifest,indent=2))
+            result=subprocess.run(['git','-C',str(ROOT),'rev-parse','--verify','HEAD'],capture_output=True,text=True)
+            revision=result.stdout.strip() if result.returncode==0 else 'unversioned'
+            archive.writestr('EvidenceWorkbenchReview/SOURCE-REVISION.txt',revision+'\n')
         with ZipFile(temporary) as archive:
             if archive.testzip() is not None: raise ValueError('Archive integrity failed')
         os.replace(temporary,TARGET)

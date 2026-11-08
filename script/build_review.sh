@@ -17,8 +17,19 @@ else
   BIN_DIR="$(swift build "${OPTIONS[@]}" --show-bin-path)"
   cp "$BIN_DIR/EvidenceWorkbench" "$APP/Contents/MacOS/EvidenceWorkbenchReview"
 fi
-BUILD_COMMIT="$(git rev-parse HEAD)"
-BUILD_SOURCE_HASH="$(git diff HEAD -- Sources Package.swift script | shasum -a 256 | awk '{print $1}')"
+BUILD_COMMIT="$(git rev-parse HEAD 2>/dev/null || cat SOURCE-REVISION.txt 2>/dev/null || printf 'unversioned')"
+BUILD_SOURCE_HASH="$(python3 - <<'PYHASH'
+from pathlib import Path
+import hashlib
+root=Path.cwd();digest=hashlib.sha256()
+files=[root/'Package.swift']
+for directory in ['Sources','script']:
+    files.extend(p for p in (root/directory).rglob('*') if p.is_file() and '__pycache__' not in p.parts and not p.name.endswith('.pyc'))
+for path in sorted(files):
+    digest.update(str(path.relative_to(root)).encode());digest.update(b'\0');digest.update(path.read_bytes());digest.update(b'\0')
+print(digest.hexdigest())
+PYHASH
+)"
 export APP BUILD_COMMIT BUILD_SOURCE_HASH
 python3 - <<'PY'
 import os, pathlib, plistlib
