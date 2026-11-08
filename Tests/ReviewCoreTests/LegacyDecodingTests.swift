@@ -40,6 +40,22 @@ final class LegacyDecodingTests: XCTestCase {
         XCTAssertEqual(row.context, ObservationContext()); XCTAssertFalse(row.citations[0].exactMatch)
         XCTAssertTrue(project.messages[0].sources.isEmpty); XCTAssertTrue(project.proposals[0].sources.isEmpty); XCTAssertNil(project.proposals[0].picott)
     }
+    func testRecordsWithoutTheirOwnIDAreRefused() throws {
+        // A missing id must fail rather than mint a new one: a review whose id changes on every load is saved to a new
+        // folder (revision 0) or can never be saved (revision >= 1), and an observation or asset loses its identity.
+        let doc = UUID().uuidString
+        let project = "{\"title\":\"No id\",\"schemaVersion\":1,\"revision\":0}"
+        let observation = "{\"documentID\":\"\(doc)\",\"variableID\":\"title\",\"value\":\"x\"}"
+        let asset = "{\"documentID\":\"\(doc)\",\"sourceSHA256\":\"abc\",\"page\":1,\"kind\":\"table\",\"label\":\"Table 1\"}"
+        XCTAssertThrowsError(try JSONDecoder().decode(ReviewProject.self, from: Data(project.utf8)))
+        XCTAssertThrowsError(try JSONDecoder().decode(Observation.self, from: Data(observation.utf8)))
+        XCTAssertThrowsError(try JSONDecoder().decode(SourceAsset.self, from: Data(asset.utf8)))
+        // The same records with an id still decode, so the refusal is caused by the missing id alone.
+        let id = UUID().uuidString
+        XCTAssertNoThrow(try JSONDecoder().decode(ReviewProject.self, from: Data(project.replacingOccurrences(of: "{", with: "{\"id\":\"\(id)\",").utf8)))
+        XCTAssertNoThrow(try JSONDecoder().decode(Observation.self, from: Data(observation.replacingOccurrences(of: "{", with: "{\"id\":\"\(id)\",").utf8)))
+        XCTAssertNoThrow(try JSONDecoder().decode(SourceAsset.self, from: Data(asset.replacingOccurrences(of: "{", with: "{\"id\":\"\(id)\",").utf8)))
+    }
     func testDecodingStillRequiresIdentityKeys() {
         XCTAssertThrowsError(try JSONDecoder().decode(Observation.self, from: Data("{\"value\":\"1\"}".utf8)))
         XCTAssertThrowsError(try JSONDecoder().decode(SourceDocument.self, from: Data("{\"filename\":\"a.pdf\"}".utf8)))
