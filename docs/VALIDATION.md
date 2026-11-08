@@ -1,6 +1,6 @@
 # Validation record — development checkpoint
 
-Reproducible entry point: `./script/test.sh`. Latest suite: **95 tests, zero failures** on the user's Apple Silicon Mac, Swift 6.3.3, targeting macOS 14+ (the OCR integration test skips only when Vision cannot allocate its pixel buffer; it ran in the latest run). The earlier checkpoint recorded 75 tests, 74 passed, one skipped. No third-party dependencies or live credentials are used by the automated suite.
+Reproducible entry point: `./script/test.sh`. Latest suite: **99 tests, zero failures, one opt-in live test skipped** on the user's Apple Silicon Mac, Swift 6.3.3, targeting macOS 14+ (the OCR integration test skips only when Vision cannot allocate its pixel buffer; it ran in the latest run). The earlier checkpoint recorded 75 tests, 74 passed, one skipped. No third-party dependencies or live credentials are used by the automated suite.
 
 Tests cover plan approval/version gates; typed values and missingness; malformed-row quarantine; source identity/hash/path validation; exact UTF-16/ligature/whitespace anchors and repeated-quote refusal; numeric value-emphasis boundaries; cropped/rotated PDF geometry; explicit visual-verification gates; CSV provenance/formula safety; atomic revision-guarded persistence and backups; structured API schemas, citations, failure handling and bounded multimodal inputs; editable-table shapes, escaping and native RTF table structure; PNG crop geometry; and image-only article import without invented text.
 
@@ -31,6 +31,14 @@ A full read of the source produced three high-severity findings and several medi
 - Research that failed to start left an unanswered user turn in the chat. `testFailedResearchStartLeavesAnExplanatoryAssistantMessage`.
 
 Changed without a dedicated unit test (UI or refactor under existing tests): document reads and DOCX parsing moved off the main actor (`DocumentLoaderTests` unchanged and green); the Settings copy and README data-flow list now name the source-check, discovery and table-conversion transmissions; Settings warns when the checker and extractor identifiers match and offers **Use Keychain instead**; the extraction audit entry names both models; the Dataset page's verified count applies the same resolved filter as the export; cell edits in the sheet opened by **Convert boxed table to editable text** now save to the Tables & images entry. The rebuilt `dist/EvidenceWorkbench.app` was launched against an empty temporary workspace, ran, and quit on request; no live paid extraction was rerun as part of this change set.
+
+## Live end-to-end check (8 November 2026)
+
+`LiveExtractionTests` is an opt-in, paid test. It runs the app's own pipeline (DocumentLoader, PDFPageImages, `OpenAIClient.extract`, ReviewEngine quarantine and consolidation, `OpenAIClient.checkSources`) on physical page 7 of Arts et al. 2017 with page text plus the page image, and scores the result against the 12 Table 1 cells hand-checked in REAL_WORLD_PILOT.md. It is skipped unless `EW_LIVE_EXTRACTION_PDF`, `EW_LIVE_KEY_FILE` and `EW_LIVE_REPORT` are set; it writes a JSON report and asserts only the pipeline's invariants, because model output varies between runs.
+
+First run, `gpt-4.1` extracting and `gpt-4.1` checking: 12 of 12 cells matched on value, arm and assessment time; 12 reported rows, none outside the truth set; every quote anchored on the cited page; the checker returned `supported` for all 12. One labelling defect: the model put "baseline" or "post-study" into the comparator field (`vs baseline`) as well as the time point, so context labels still need review.
+
+Limits: one page, one run, and twelve easy cells from a clean native-text table. With no wrong rows to judge, the checker's false-support rate is untested, and the checker was the same model as the extractor. This shows the paid path works end to end after the 8 November changes. It is not an accuracy estimate.
 
 ## New collection and source-checking work
 
