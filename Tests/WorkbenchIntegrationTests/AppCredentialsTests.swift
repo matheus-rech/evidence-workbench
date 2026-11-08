@@ -28,6 +28,12 @@ final class AppCredentialsTests: XCTestCase {
             XCTAssertTrue(error.localizedDescription.contains("symbolic link"), "The symlink refusal must reach the user, got: \(error.localizedDescription)")
         }
     }
+    func testMalformedKeyLineDoesNotFallBackToKeychain() throws {
+        for contents in ["OPENAI_API_KEY=\n", "OPENAI_API_KEY=bad token\n"] {
+            let file = try keyFile(contents)
+            XCTAssertThrowsError(try AppCredentials.resolve(fileURL: file, keychain: { "keychain-synthetic-value" }), "A broken key line must be reported, not replaced by the Keychain key: \(contents)")
+        }
+    }
     func testKeyFileWithoutVariableAndEmptyKeychainReportsMissingKey() throws {
         let file = try keyFile("OTHER=1\n")
         XCTAssertThrowsError(try AppCredentials.resolve(fileURL: file, keychain: { "" })) { error in
