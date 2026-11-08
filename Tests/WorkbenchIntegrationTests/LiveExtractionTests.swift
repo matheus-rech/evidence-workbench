@@ -34,15 +34,39 @@ final class LiveExtractionTests: XCTestCase {
 
     private func env(_ key: String) -> String? { ProcessInfo.processInfo.environment[key].flatMap { $0.isEmpty ? nil : $0 } }
 
-    private func time(_ context: String) -> String? {
-        if context.contains("baseline") || context.contains("pre-") || context.contains("pre ") { return "baseline" }
-        if context.contains("post") || context.contains("follow") || context.contains("end of study") { return "post" }
-        return nil
+    /// Each label is read from its own field, so a comparator or a note cannot change which cell a row is scored against.
+    static func time(_ label: String) -> String? {
+        let text = label.lowercased()
+        let baseline = text.contains("baseline") || text.contains("pre-")
+        let post = text.contains("post") || text.contains("follow") || text.contains("end of study")
+        return baseline == post ? nil : (baseline ? "baseline" : "post")
     }
-    private func arm(_ context: String) -> String? {
-        let control = context.contains("control") || context.contains("usual care")
-        let intervention = context.contains("intervention")
+    static func arm(_ label: String) -> String? {
+        let text = label.lowercased()
+        let control = text.contains("control") || text.contains("usual care")
+        let intervention = text.contains("intervention")
         return control == intervention ? nil : (control ? "control" : "intervention")
+    }
+    /// Arm from `context.arm`; time from `context.timepoint`, falling back to `context.analysis` only when the time point is empty.
+    static func matches(_ row: Observation, variable: String, arm cellArm: String, time cellTime: String, value cellValue: Double) -> Bool {
+        guard row.missingness == .reported, row.variableID == variable, let value = Double(row.value) else { return false }
+        let timeLabel = row.context.timepoint.trimmingCharacters(in: .whitespaces).isEmpty ? row.context.analysis : row.context.timepoint
+        return abs(value - cellValue) < 1e-9 && arm(row.context.arm) == cellArm && time(timeLabel) == cellTime
+    }
+
+    /// Free, always-run check of the scorer, so the paid test cannot report a false 12/12 or a false miss.
+    func testScorerReadsArmAndTimeFromTheirOwnFields() {
+        let doc = UUID()
+        func row(_ value: String, arm: String, comparator: String = "", time: String, analysis: String = "", note: String = "") -> Observation {
+            Observation(documentID: doc, variableID: "age_mean", value: value, context: .init(arm: arm, comparator: comparator, timepoint: time, analysis: analysis), note: note)
+        }
+        XCTAssertTrue(Self.matches(row("72.13", arm: "Intervention", comparator: "Control", time: "Baseline"), variable: "age_mean", arm: "intervention", time: "baseline", value: 72.13), "A comparator naming the other arm must not reject the row.")
+        XCTAssertTrue(Self.matches(row("73.73", arm: "Control", comparator: "vs baseline", time: "Post-study"), variable: "age_mean", arm: "control", time: "post", value: 73.73), "A comparator naming another time must not move the row.")
+        XCTAssertFalse(Self.matches(row("73.73", arm: "Control", time: "Post-study"), variable: "age_mean", arm: "control", time: "baseline", value: 73.73))
+        XCTAssertFalse(Self.matches(row("73.73", arm: "Control", time: "Post-study", note: "baseline value"), variable: "age_mean", arm: "control", time: "baseline", value: 73.73), "A note must not change the time point.")
+        XCTAssertTrue(Self.matches(row("74.61", arm: "Control", time: "", analysis: "Baseline characteristics"), variable: "age_mean", arm: "control", time: "baseline", value: 74.61), "An empty time point falls back to the analysis label.")
+        XCTAssertFalse(Self.matches(row("74.61", arm: "Control and intervention", time: "Baseline"), variable: "age_mean", arm: "control", time: "baseline", value: 74.61), "A row naming both arms is not a single-arm cell.")
+        XCTAssertFalse(Self.matches(row("74.6", arm: "Control", time: "Baseline"), variable: "age_mean", arm: "control", time: "baseline", value: 74.61))
     }
 
     func testArtsTableOneMatchesHandCheckedCells() async throws {
@@ -81,11 +105,7 @@ final class LiveExtractionTests: XCTestCase {
             for index in batch { if let check = checks.checks.first(where: { $0.observation_id == rows[index].id }) { rows[index].sourceCheck = .init(verdict: check.verdict, reason: check.reason, quote: check.source_quote, model: checkModel, claimFingerprint: SourceCheckPolicy.fingerprint(rows[index])) } }
         }
 
-        func matches(_ row: Observation, _ cell: Cell) -> Bool {
-            let context = (row.context.summary + " " + row.note).lowercased()
-            guard row.missingness == .reported, row.variableID == cell.variable, let value = Double(row.value) else { return false }
-            return abs(value - cell.value) < 1e-9 && arm(context) == cell.arm && time(context) == cell.time
-        }
+        func matches(_ row: Observation, _ cell: Cell) -> Bool { Self.matches(row, variable: cell.variable, arm: cell.arm, time: cell.time, value: cell.value) }
         let missed = truth.filter { cell in !rows.contains { matches($0, cell) } }
         let reportRows = rows.map { row in
             Row(variable: row.variableID, value: row.value, context: row.context.summary, page: row.citations.first?.page ?? 0, quoteAnchored: row.citations.first?.exactMatch ?? false, quarantined: row.note.hasPrefix("Invalid model suggestion"), verdict: row.sourceCheck?.verdict.rawValue ?? "none", matchesTruth: truth.contains { matches(row, $0) })
