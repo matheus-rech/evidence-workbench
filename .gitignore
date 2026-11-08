@@ -1,0 +1,7 @@
+.build/
+dist/
+LocalData/
+.DS_Store
+*.xcuserstate
+.env
+.env.*
