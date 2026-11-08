@@ -53,7 +53,7 @@ public actor ProjectRepository {
         if FileManager.default.fileExists(atPath: url.path) {
             guard try loadFile(url).revision == project.revision else { throw WorkbenchError.conflict }
         } else if project.revision != 0 { throw WorkbenchError.conflict }
-        var saved = project; saved.updatedAt = Date(); saved.revision += 1
+        var saved = project; saved.schemaVersion = 2; saved.updatedAt = Date(); saved.revision += 1
         let bytes = try encoder.encode(saved)
         try bytes.write(to: url, options: .atomic)
         return saved
@@ -118,7 +118,7 @@ public actor ProjectRepository {
         let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         guard size <= 100 * 1024 * 1024 else { throw WorkbenchError.invalid("Project JSON exceeds the supported size.") }
         let project = try decoder.decode(ReviewProject.self, from: Data(contentsOf: url))
-        guard project.schemaVersion == 1 else { throw WorkbenchError.invalid("Unsupported project version. Update the app before opening this project.") }
+        guard [1, 2].contains(project.schemaVersion) else { throw WorkbenchError.invalid("Unsupported project version. Update the app before opening this project.") }
         guard Set(project.documents.map(\.id)).count == project.documents.count, Set(project.plan.variables.map(\.id)).count == project.plan.variables.count else { throw WorkbenchError.invalid("The project contains duplicate document or field identifiers.") }
         guard (project.assets?.count ?? 0) <= 10_000, Set((project.assets ?? []).map(\.id)).count == (project.assets?.count ?? 0) else { throw WorkbenchError.invalid("The source collection is too large or contains duplicate identifiers.") }
         for asset in project.assets ?? [] {

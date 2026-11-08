@@ -17,4 +17,14 @@ final class IntegrityTests: XCTestCase {
         XCTAssertEqual(loaded?.observations.first?.value,"legacy");XCTAssertEqual(loaded?.observations.first?.status,.edited)
         XCTAssertTrue(loaded?.audit.contains { $0.action == "Verification quarantined" } == true)
     }
+    func testSavingLegacyReviewUsesVersionTwoWithoutChangingItsIdentity() async throws {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:root)}
+        let repo=ProjectRepository(root:root);var old=ReviewProject();old.schemaVersion=1
+        let folder=root.appendingPathComponent(old.id.uuidString);try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true);try JSONEncoder().encode(old).write(to:folder.appendingPathComponent("project.json"))
+        let before = try await repo.list(); let legacy=try XCTUnwrap(before.projects.first)
+        XCTAssertEqual(legacy.schemaVersion,1)
+        let saved=try await repo.save(legacy);XCTAssertEqual(saved.schemaVersion,2);XCTAssertEqual(saved.id,old.id)
+        let listing=try await repo.list();XCTAssertEqual(listing.projects.first?.schemaVersion,2)
+    }
+
 }

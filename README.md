@@ -14,7 +14,7 @@ bash script/build_review.sh --release
 python3 script/package.py
 ```
 
-`--release` builds arm64 and x86_64; `--run` builds and opens the isolated bundle. Scripts do not terminate other apps. Builds are ad-hoc signed, not Developer ID signed or notarized. Intel runtime and clean-Mac installation remain unvalidated. The bundle records its source commit and a source diff digest; the ZIP records SHA-256 per file. Sources are packaged by allowlist; editor settings, workspaces and env files are excluded even if tracked.
+`--release` builds arm64 and x86_64; `--run` builds and opens the isolated bundle. Scripts do not terminate other apps. Builds are ad-hoc signed, not Developer ID signed or notarized. Intel runtime and clean-Mac installation remain unvalidated. The bundle records its source commit and a source content digest; the ZIP records SHA-256 per file. Sources are packaged by allowlist; editor settings, workspaces and env files are excluded even if tracked.
 
 ## Assisted or automatic
 
@@ -27,7 +27,7 @@ AI-reviewed rows can still be scientifically wrong. The automatic subset require
 
 ## Integrity changes
 
-All observation verification and dataset exports rehash originals. Saved human/AI decisions bind source ID/hash, cached transcription, exact citations, field definition and plan version. Loads reject broken/duplicate identities and quarantine legacy/inconsistent verified states as editable while retaining values and prior reviewer in the audit trail. Re-review is necessary before those values enter verified export. No automatic migration writes to the original workspace occur.
+All observation verification and dataset exports rehash originals. Saved human/AI decisions bind source ID/hash, cached transcription, exact citations, field definition and plan version. Loads reject broken/duplicate identities and quarantine legacy/inconsistent verified states as editable while retaining values and prior reviewer in the audit trail. Re-review is necessary before those values enter verified export. No automatic migration writes to the original workspace occur. New saves use schema 2; schema-1 copies can be imported and re-reviewed. Older app versions do not understand AI-reviewed states: do not transfer this review workspace back into the old application.
 
 `ReviewCore` is the typed model/validation/persistence/API layer; SwiftUI, PDFKit, Vision and AppKit implement the native UI. There are no external Swift package dependencies. Documents are local JSON/files; audit history is editable and not a cryptographic regulatory record.
 

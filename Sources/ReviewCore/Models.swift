@@ -287,7 +287,7 @@ public struct ResearchJob: Codable, Equatable, Sendable {
 public struct ReviewProject: Identifiable, Codable, Equatable, Sendable {
     public var id = UUID()
     public var title = "Untitled review"
-    public var schemaVersion = 1
+    public var schemaVersion = 2
     public var revision = 0
     public var updatedAt = Date()
     public var plan = ReviewPlan()
