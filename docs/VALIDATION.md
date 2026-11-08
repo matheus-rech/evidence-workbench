@@ -1,6 +1,6 @@
-# Validation record — 0.3
+# Validation record — development checkpoint
 
-Reproducible entry point: `./script/test.sh`. Latest suite: **68 tests, 67 passed, one skipped, zero failures** on the user's Apple Silicon Mac, Swift 6.3.3, targeting macOS 14+. No third-party dependencies or live credentials are used by the automated suite.
+Reproducible entry point: `./script/test.sh`. Latest suite: **75 tests, 74 passed, one skipped, zero failures** on the user's Apple Silicon Mac, Swift 6.3.3, targeting macOS 14+. No third-party dependencies or live credentials are used by the automated suite.
 
 Tests cover plan approval/version gates; typed values and missingness; malformed-row quarantine; source identity/hash/path validation; exact UTF-16/ligature/whitespace anchors and repeated-quote refusal; numeric value-emphasis boundaries; cropped/rotated PDF geometry; explicit visual-verification gates; CSV provenance/formula safety; atomic revision-guarded persistence and backups; structured API schemas, citations, failure handling and bounded multimodal inputs; editable-table shapes, escaping and native RTF table structure; PNG crop geometry; and image-only article import without invented text.
 

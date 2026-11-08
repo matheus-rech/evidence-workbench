@@ -7,6 +7,7 @@ public struct EditableTable: Codable, Equatable, Sendable, Identifiable {
     public var rows: [[String]]
     public var footnotes: [String]
     public var warnings: [String]
+    public var reviewerNote: String?
     public var sourceFilename: String
     public var sourceSHA256: String
     public var page: Int
@@ -18,7 +19,7 @@ public struct EditableTable: Codable, Equatable, Sendable, Identifiable {
     public func validate() throws {
         if let row = rows.firstIndex(where: { $0.count != columns.count }) { throw WorkbenchError.invalid("Table row \(row + 1) contains \(rows[row].count) cells; expected \(columns.count). No columns were guessed or shifted.") }
         guard (1...40).contains(columns.count), rows.count <= 500, region.isValid, page > 0,
-              (columns + rows.flatMap { $0 } + footnotes + warnings).allSatisfy({ $0.count <= 10_000 }) else {
+              (columns + rows.flatMap { $0 } + footnotes + warnings + [reviewerNote ?? ""]).allSatisfy({ $0.count <= 10_000 }) else {
             throw WorkbenchError.invalid("The table has invalid dimensions, cell lengths or source coordinates. No partial table was applied.")
         }
     }
@@ -29,7 +30,7 @@ public struct EditableTable: Codable, Equatable, Sendable, Identifiable {
     public var html: String {
         let head = columns.map { "<th>\(escapedHTML($0))</th>" }.joined()
         let body = rows.map { "<tr>" + $0.map { "<td>\(escapedHTML($0))</td>" }.joined() + "</tr>" }.joined()
-        return "<!doctype html><html><head><meta charset=\"utf-8\"><style>body{font-family:Helvetica,Arial,sans-serif}table{border-collapse:collapse}td,th{border:1px solid #777;padding:6px;vertical-align:top}</style></head><body><h2>\(escapedHTML(title))</h2><table><thead><tr>\(head)</tr></thead><tbody>\(body)</tbody></table>" + footnotes.map { "<p>\(escapedHTML($0))</p>" }.joined() + "<p>\(escapedHTML(provenance))</p>" + warnings.map { "<p>Review note: \(escapedHTML($0))</p>" }.joined() + "</body></html>"
+        return "<!doctype html><html><head><meta charset=\"utf-8\"><style>body{font-family:Helvetica,Arial,sans-serif}table{border-collapse:collapse}td,th{border:1px solid #777;padding:6px;vertical-align:top}</style></head><body><h2>\(escapedHTML(title))</h2><table><thead><tr>\(head)</tr></thead><tbody>\(body)</tbody></table>" + footnotes.map { "<p>\(escapedHTML($0))</p>" }.joined() + "<p>\(escapedHTML(provenance))</p>" + warnings.map { "<p>AI review note: \(escapedHTML($0))</p>" }.joined() + "<p>Reviewer note: \(escapedHTML(reviewerNote ?? ""))</p></body></html>"
     }
     private func spreadsheetSafe(_ value: String) -> String {
         let clean = value.replacingOccurrences(of: "\t", with: " ").replacingOccurrences(of: "\r", with: " ").replacingOccurrences(of: "\n", with: " ")
@@ -56,7 +57,7 @@ public struct EditableTable: Codable, Equatable, Sendable, Identifiable {
         func row(_ cells: [String], header: Bool) -> String {
             "\\trowd\\trgaph100" + cells.indices.map { "\\cellx\(($0 + 1) * width)" }.joined() + "\n" + cells.map { "\\intbl " + (header ? "\\b " : "") + escapedRTF($0) + (header ? "\\b0 " : "") + "\\cell " }.joined() + "\\row\n"
         }
-        return "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Helvetica;}}\\f0\\fs20 " + escapedRTF(title) + "\\par\n" + row(columns, header: true) + rows.map { row($0, header: false) }.joined() + "\\pard " + (footnotes + [provenance] + warnings).map(escapedRTF).joined(separator: "\\par ") + "}"
+        return "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Helvetica;}}\\f0\\fs20 " + escapedRTF(title) + "\\par\n" + row(columns, header: true) + rows.map { row($0, header: false) }.joined() + "\\pard " + (footnotes + [provenance] + warnings + ["Reviewer note: " + (reviewerNote ?? "")]).map(escapedRTF).joined(separator: "\\par ") + "}"
     }
 }
 

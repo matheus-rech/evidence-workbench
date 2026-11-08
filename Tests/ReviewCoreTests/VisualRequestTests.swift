@@ -8,7 +8,9 @@ extension OpenAIClientTests {
         do { _ = try await OpenAIClient(transport: transport).checkSources(observations: [row], variables: CoreFields.defaults, pages: [.init(number: 1, text: "235")], images: [], model: "checker", apiKey: "test"); XCTFail("Missing check must not pass") } catch {}
         let body = try await transport.body()
         XCTAssertTrue((body["instructions"] as? String)?.contains("separate context") == true)
-        XCTAssertFalse((body["input"] as? String ?? "").contains("confidence"))
+        let input = try XCTUnwrap(body["input"] as? [[String: Any]])
+        let content = try XCTUnwrap(input.first?["content"] as? [[String: Any]])
+        XCTAssertFalse((content.first?["text"] as? String ?? "").contains("\"confidence\":"))
     }
     func testAssetDiscoveryRejectsUnrelatedPhysicalPage() async throws {
         let reply = "{\"assets\":[{\"kind\":\"figure\",\"page\":99,\"label\":\"Fig 1\",\"title\":\"Flow\",\"caption\":\"\",\"warnings\":[]}]}"

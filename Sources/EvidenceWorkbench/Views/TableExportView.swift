@@ -18,10 +18,10 @@ struct TableExportView: View {
                     ScrollView([.horizontal, .vertical]) { Image(nsImage: image).resizable().scaledToFit().frame(width: 500) }.frame(minWidth: 250, idealWidth: 380)
                 }
                 ScrollView([.horizontal, .vertical]) {
-                    Grid(alignment: .leading, horizontalSpacing: 4, verticalSpacing: 4) {
-                        GridRow { ForEach(table.columns.indices, id: \.self) { column in TextField("Header", text: $table.columns[column]).font(.caption.bold()).frame(width: 150) } }
+                    LazyVStack(alignment: .leading, spacing: 4) {
+                        HStack(alignment: .top, spacing: 4) { ForEach(table.columns.indices, id: \.self) { column in TextField("Header", text: $table.columns[column]).font(.caption.bold()).frame(width: 150) } }
                         ForEach(table.rows.indices, id: \.self) { row in
-                            GridRow { ForEach(table.columns.indices, id: \.self) { column in TextField("Cell", text: $table.rows[row][column], axis: .vertical).lineLimit(1...4).frame(width: 150) } }
+                            HStack(alignment: .top, spacing: 4) { ForEach(table.columns.indices, id: \.self) { column in TextField("Cell", text: $table.rows[row][column], axis: .vertical).lineLimit(1...4).frame(width: 150) } }
                         }
                     }.textFieldStyle(.roundedBorder).padding(4)
                 }.frame(minWidth: 350)
@@ -29,6 +29,7 @@ struct TableExportView: View {
             ForEach(table.warnings, id: \.self) { Text($0).font(.caption).foregroundStyle(.orange) }
             if !table.footnotes.isEmpty { Text(table.footnotes.joined(separator: "\n")).font(.caption).textSelection(.enabled) }
             Text(table.provenance).font(.caption2).foregroundStyle(.secondary).textSelection(.enabled).lineLimit(3)
+            TextField("Reviewer note / unresolved source discrepancies", text: Binding(get: { table.reviewerNote ?? "" }, set: { table.reviewerNote = $0 }), axis: .vertical).lineLimit(2...4).textFieldStyle(.roundedBorder)
             Toggle("I checked the table values, headers, units, missing cells and footnotes against the original", isOn: $checked).font(.caption)
             HStack {
                 if let onSave { Button("Save checked table") { onSave(table); dismiss() } }

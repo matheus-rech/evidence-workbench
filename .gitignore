@@ -5,3 +5,8 @@ LocalData/
 *.xcuserstate
 .env
 .env.*
+
+# Local editor setup and validation workspaces
+.codex/
+ValidationSources/
+ValidationReport/

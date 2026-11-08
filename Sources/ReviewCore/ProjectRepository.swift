@@ -100,6 +100,11 @@ public actor ProjectRepository {
         let project = try decoder.decode(ReviewProject.self, from: Data(contentsOf: url))
         guard project.schemaVersion == 1 else { throw WorkbenchError.invalid("Unsupported project version. Update the app before opening this project.") }
         guard Set(project.documents.map(\.id)).count == project.documents.count, Set(project.plan.variables.map(\.id)).count == project.plan.variables.count else { throw WorkbenchError.invalid("The project contains duplicate document or field identifiers.") }
+        guard (project.assets?.count ?? 0) <= 10_000, Set((project.assets ?? []).map(\.id)).count == (project.assets?.count ?? 0) else { throw WorkbenchError.invalid("The source collection is too large or contains duplicate identifiers.") }
+        for asset in project.assets ?? [] {
+            guard let document = project.documents.first(where: { $0.id == asset.documentID }) else { throw WorkbenchError.invalid("A source asset references a missing report.") }
+            try asset.validate(document: document)
+        }
         return project
     }
 }

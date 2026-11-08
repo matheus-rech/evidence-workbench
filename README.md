@@ -12,7 +12,7 @@ The source package has no third-party dependencies. To build and launch with Xco
 ./script/build_and_run.sh
 ```
 
-The script stages a real `.app` bundle. Development launches use `LocalData/` inside the source project; opening the packaged app normally uses `~/Library/Application Support/EvidenceWorkbench/Reviews/`. These locations are separate. The Codex Run action is configured in `.codex/environments/environment.toml`; open this source directory as the Codex workspace to use it.
+The script stages a real `.app` bundle. Development launches use `LocalData/` inside the source project; opening the packaged app normally uses `~/Library/Application Support/EvidenceWorkbench/Reviews/`. These locations are separate. Use the build script from the repository root. Local editor configuration is not required.
 
 Run verification with:
 
@@ -130,3 +130,18 @@ Use **Copy / export** in the source reader to copy or save the current page or a
 Older approved plans retain their dictionaries. Use a documented amendment and **Add percentage and rate outcome fields** to add the two new result fields. Missing outcome mean/SD does not establish that binary outcomes are absent. After an amendment, old-plan observations are hidden by default and can be shown explicitly for rechecking.
 
 Selecting an observation now automatically navigates to and highlights its citation. The provenance preview emphasizes a literal value inside its quote; numeric boundaries prevent substring matches. Edit the quotation using its disclosure control. If a quote is missing or ambiguous, the app reports that and draws no guessed match.
+
+## Project preservation and next session
+
+The private GitHub repository is https://github.com/matheus-rech/evidence-workbench. Clone it on another Mac with an account that has access:
+
+```sh
+git clone https://github.com/matheus-rech/evidence-workbench.git
+cd evidence-workbench
+./script/test.sh
+./script/build_and_run.sh
+```
+
+Requires macOS 14 or later and Xcode's Swift toolchain. Credentials, imported PDFs, local reviews and built app bundles are excluded. Back up or export review data separately from the source repository. A private source repository does not provide a public app download.
+
+The current development checkpoint includes a persistent **Tables & images** collection, automatic asset discovery after visual extraction, editable table export and a separate AI source-checking context. These additions remain under real-document validation. AI support is not human verification or a guarantee of accuracy. Read [the validation record](docs/VALIDATION.md), [the pilot findings](docs/REAL_WORLD_PILOT.md) and [the backlog](docs/ROADMAP.md) before extending or distributing the app.

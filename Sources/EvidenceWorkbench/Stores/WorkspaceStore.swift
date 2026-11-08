@@ -25,7 +25,6 @@ import ReviewCore
     var extractionModel: String { UserDefaults.standard.string(forKey: "extractionModel") ?? "gpt-4.1" }
     var researchModel: String { UserDefaults.standard.string(forKey: "researchModel") ?? "o3" }
     var sourceCheckModel: String { UserDefaults.standard.string(forKey: "sourceCheckModel") ?? "gpt-4.1" }
-    @Published var assetNavigation: SourceAsset?
 
     init(root: URL? = nil) {
         let args = ProcessInfo.processInfo.arguments
@@ -203,7 +202,9 @@ import ReviewCore
                 let merged = ReviewEngine.mergeSuggestions(existing: latest.observations, incoming: incoming, documentID: document.id, planVersion: project.plan.version)
                 let accepted = merged.filter { row in incoming.contains { $0.id == row.id } }.count
                 latest.observations = merged
-                latest.audit.append(.init(actor: latest.plan.reviewer, action: "AI extraction staged for review", detail: "\(document.filename); \(accepted) suggestions saved; \(incoming.count - accepted) skipped to protect reviewed/edited/rejected rows; visual pages: \(visual); model \(model), plan v\(project.plan.version). Quotes are checked against page text, not independently fact-verified."))
+                let supported = incoming.filter { $0.sourceCheck?.verdict == .supported }.count
+                let contradicted = incoming.filter { $0.sourceCheck?.verdict == .contradicted }.count
+                latest.audit.append(.init(actor: latest.plan.reviewer, action: "AI extraction staged for review", detail: "\(document.filename); \(accepted) suggestions saved; \(incoming.count - accepted) skipped to protect reviewed/edited/rejected rows; visual pages: \(visual); model \(model), plan v\(project.plan.version). Separate source checks: \(supported) supported, \(contradicted) contradicted. Model support is not human verification."))
             }
             self.notice = "Extraction saved as suggestions. Human verification is required."
             let includeAssets = UserDefaults.standard.object(forKey: "extractAssets") as? Bool ?? true
@@ -254,6 +255,7 @@ import ReviewCore
             try await self.mutate(project.id) { latest in
                 guard let index = latest.observations.firstIndex(where: { $0.id == observation.id }), SourceCheckPolicy.fingerprint(latest.observations[index]) == SourceCheckPolicy.fingerprint(observation) else { throw WorkbenchError.invalid("The claim changed while its source was checked. Check the saved value again.") }
                 latest.observations[index].sourceCheck = checked.sourceCheck
+                latest.observations[index].planVersion = latest.plan.version
                 if !SourceCheckPolicy.supported(checked) { latest.observations[index].status = .edited; latest.observations[index].reviewer = ""; latest.observations[index].sourceAdjudication = nil }
                 latest.observations[index].updatedAt = Date()
                 latest.audit.append(.init(actor: latest.plan.reviewer, action: "Independent AI source check", detail: "\(observation.id): \(checked.sourceCheck?.verdict.rawValue ?? "unclear"). AI support is not human verification."))
@@ -357,6 +359,10 @@ import ReviewCore
                 try ReviewEngine.validateObservationValue(observation, variable: variable)
                 let old = latest.observations.first { $0.id == observation.id }
                 var edited = observation
+                if let old, old.planVersion != latest.plan.version {
+                    edited.sourceCheck = nil
+                    if edited.sourceAdjudication == old.sourceAdjudication { edited.sourceAdjudication = nil }
+                }
                 if let old, old.value != observation.value || old.context != observation.context || old.missingness != observation.missingness {
                     // Explicitly reattached quotation in the editor may be kept, but must be checked again.
                     edited.status = .edited; edited.confidence = nil; edited.reviewer = ""
