@@ -25,6 +25,15 @@ final class InvalidSuggestionTests: XCTestCase {
         XCTAssertEqual(rows[1].value, "42"); XCTAssertEqual(rows[1].missingness, .reported)
         // This validates syntax only. Correct participant-versus-cluster interpretation still needs checking.
     }
+    func testInvalidRegionIsDroppedAndTheRowIsRetainedForCorrection() throws {
+        let document = SourceDocument(filename: "report.pdf", relativePath: "report.pdf", sha256: "fixture", pages: [.init(number: 1, text: "42 patients")])
+        let field = try XCTUnwrap(CoreFields.defaults.first { $0.id == "n" })
+        let row = Observation(documentID: document.id, variableID: "n", value: "42", citations: [.init(page: 1, quote: "42 patients", region: .init(x: 0.9, y: 0.9, width: 0.5, height: 0.5))])
+        let flagged = try ReviewEngine.reviewableSuggestion(row, variable: field, document: document)
+        XCTAssertEqual(flagged.missingness, .unclear); XCTAssertEqual(flagged.value, "")
+        XCTAssertTrue(flagged.citations.isEmpty, "An out-of-page region is discarded; the row survives with its raw value in the note.")
+        XCTAssertTrue(flagged.note.contains("Raw value: 42"))
+    }
     func testWrongSourceStillFailsAndInvalidPageIsNotRetained() throws {
         let document = SourceDocument(filename: "report.pdf", relativePath: "report.pdf", sha256: "fixture", pages: [.init(number: 1, text: "42")])
         let field = try XCTUnwrap(CoreFields.defaults.first { $0.id == "n" })

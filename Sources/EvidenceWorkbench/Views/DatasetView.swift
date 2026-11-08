@@ -21,7 +21,7 @@ struct DatasetView: View {
             HStack(spacing: 18) {
                 metric("Studies", count: Set(project.documents.map(\.studyID)).count)
                 metric("Reports", count: project.documents.count)
-                metric("Verified · current plan", count: project.observations.filter { $0.status == .verified && $0.planVersion == project.plan.version }.count)
+                metric("Verified · current plan · exportable", count: project.observations.filter { $0.status == .verified && $0.planVersion == project.plan.version && SourceCheckPolicy.resolved($0) }.count)
                 metric("Pending review", count: project.observations.filter { [.suggested, .edited].contains($0.status) }.count)
             }.padding(16).frame(maxWidth: .infinity).background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
             HStack {

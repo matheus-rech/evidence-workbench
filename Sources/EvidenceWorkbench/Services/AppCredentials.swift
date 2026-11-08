@@ -10,11 +10,22 @@ enum AppCredentials {
         let local = Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent(".env.local")
         return FileManager.default.fileExists(atPath: local.path) ? local : nil
     }
-    static func read() throws -> String {
-        if let url = keyFileURL { return try LocalKeyFile.read(url) }
-        let key = try KeychainStore.read()
-        guard !key.isEmpty else { throw WorkbenchError.missingKey }
-        return key
+    static func read() throws -> String { try resolve(fileURL: keyFileURL, keychain: KeychainStore.read) }
+
+    /// A configured key file wins when it holds the variable; otherwise the Keychain entry is used. Only when neither
+    /// has a key is the file's own error (missing variable, symlink, size) reported.
+    static func resolve(fileURL: URL?, keychain: () throws -> String) throws -> String {
+        guard let url = fileURL else {
+            let key = try keychain()
+            guard !key.isEmpty else { throw WorkbenchError.missingKey }
+            return key
+        }
+        do { return try LocalKeyFile.read(url) }
+        catch {
+            let fallback = (try? keychain()) ?? ""
+            guard !fallback.isEmpty else { throw error }
+            return fallback
+        }
     }
     static func checkConnection() async -> String {
         do {

@@ -10,17 +10,20 @@ struct LoadedDocument: Sendable {
 }
 
 enum DocumentLoader {
+    /// Reading up to 100 MB and parsing DOCX/PDF happens off the main actor; the security scope stays open until the read finishes.
     @MainActor static func load(_ url: URL, ocr: Bool, allowImageOnlyPDF: Bool = false) async throws -> LoadedDocument {
         let accessible = url.startAccessingSecurityScopedResource()
         defer { if accessible { url.stopAccessingSecurityScopedResource() } }
+        let task = Task.detached(priority: .userInitiated) { try read(url, ocr: ocr, allowImageOnly: allowImageOnlyPDF) }
+        return try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
+    }
+
+    private static func read(_ url: URL, ocr: Bool, allowImageOnly: Bool) throws -> LoadedDocument {
         let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         guard size <= 100 * 1024 * 1024 else { throw WorkbenchError.invalid("Choose a document smaller than 100 MB.") }
         let data = try Data(contentsOf: url)
         let suffix = url.pathExtension.lowercased()
-        if suffix == "pdf" {
-            let task = Task.detached(priority: .userInitiated) { try readPDF(data, ocr: ocr, allowImageOnly: allowImageOnlyPDF) }
-            return try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
-        }
+        if suffix == "pdf" { return try readPDF(data, ocr: ocr, allowImageOnly: allowImageOnly) }
         let text: String
         if suffix == "docx" {
             let attributed = try NSAttributedString(data: data, options: [.documentType: NSAttributedString.DocumentType.officeOpenXML], documentAttributes: nil)

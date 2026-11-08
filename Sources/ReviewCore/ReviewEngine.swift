@@ -9,7 +9,7 @@ public enum ReviewEngine {
         catch {
             var flagged = observation
             flagged.value = ""; flagged.missingness = .unclear; flagged.confidence = nil
-            flagged.citations = observation.citations.filter { citation in document.pages.contains { $0.number == citation.page } }
+            flagged.citations = observation.citations.filter { citation in document.pages.contains { $0.number == citation.page } && (citation.region?.isValid ?? true) }
             flagged.note = "Invalid model suggestion retained for correction. Raw value: \(observation.value.prefix(1_000)). Validation: \(error.localizedDescription). " + observation.note
             return try validated(flagged, variable: variable, document: document)
         }
@@ -130,6 +130,16 @@ public enum ReviewEngine {
         }
         return result.filter { value in
             value.missingness == .reported || !result.contains { $0.documentID == value.documentID && $0.variableID == value.variableID && $0.context == value.context && $0.missingness == .reported }
+        }
+    }
+
+    /// Explicit absence suggestions for variables that this extraction run did not return.
+    /// A variable the reviewer has already recorded (edited or verified) for this report is not absent; a rejected
+    /// suggestion says nothing about absence, so those variables still receive an explicit row to confirm.
+    public static func absenceSuggestions(variables: [VariableDefinition], consolidated: [Observation], existing: [Observation], documentID: UUID, pagesIncomplete: Bool, model: String, planVersion: Int) -> [Observation] {
+        let recorded = Set(existing.filter { $0.documentID == documentID && [.edited, .verified].contains($0.status) }.map(\.variableID))
+        return variables.filter { field in !recorded.contains(field.id) && !consolidated.contains { $0.variableID == field.id } }.map { field in
+            Observation(documentID: documentID, variableID: field.id, missingness: pagesIncomplete ? .unclear : .notReported, confidence: 0, note: pagesIncomplete ? "Not found in available text; some pages were unreadable. Review the original." : "Not found by AI across the supplied pages. A reviewer must confirm absence.", model: model, planVersion: planVersion)
         }
     }
 

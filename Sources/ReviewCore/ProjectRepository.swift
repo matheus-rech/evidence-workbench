@@ -3,7 +3,7 @@ import CryptoKit
 import Darwin
 
 public actor ProjectRepository {
-    public let root: URL
+    nonisolated public let root: URL
     private let encoder: JSONEncoder
     private let decoder = JSONDecoder()
 
@@ -12,12 +12,22 @@ public actor ProjectRepository {
         self.encoder = JSONEncoder(); self.encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
     }
 
-    public func list() throws -> [ReviewProject] {
+    /// Readable reviews plus one line per review directory that could not be opened.
+    public struct Listing: Sendable {
+        public var projects: [ReviewProject]
+        public var failures: [String]
+        public init(projects: [ReviewProject], failures: [String]) { self.projects = projects; self.failures = failures }
+    }
+
+    /// One unreadable review directory must not hide the others; it is reported by name instead.
+    public func list() throws -> Listing {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        return try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
-            .filter { UUID(uuidString: $0.lastPathComponent) != nil }
-            .map { try loadFile($0.appendingPathComponent("project.json")) }
-            .sorted { $0.updatedAt > $1.updatedAt }
+        var projects: [ReviewProject] = []; var failures: [String] = []
+        for directory in try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) where UUID(uuidString: directory.lastPathComponent) != nil {
+            do { projects.append(try loadFile(directory.appendingPathComponent("project.json"))) }
+            catch { failures.append("\(directory.lastPathComponent): \(error.localizedDescription)") }
+        }
+        return Listing(projects: projects.sorted { $0.updatedAt > $1.updatedAt }, failures: failures.sorted())
     }
 
     public func directory(for id: UUID) -> URL { root.appendingPathComponent(id.uuidString, isDirectory: true) }
@@ -42,7 +52,8 @@ public actor ProjectRepository {
 
     public func installDocument(data: Data, extension suffix: String, projectID: UUID) throws -> (path: String, hash: String) {
         guard data.count <= 100 * 1024 * 1024 else { throw WorkbenchError.invalid("Each document must be smaller than 100 MB.") }
-        guard ["pdf", "txt", "md", "docx", "html", "htm"].contains(suffix.lowercased()) else { throw WorkbenchError.invalid("Unsupported document type.") }
+        // Keep in step with DocumentLoader: a type that cannot be loaded must not be installed.
+        guard ["pdf", "txt", "md", "docx"].contains(suffix.lowercased()) else { throw WorkbenchError.invalid("Unsupported document type. Import PDF, DOCX, UTF-8 TXT or Markdown.") }
         let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
         let relative = "documents/\(hash).\(suffix.lowercased())"
         let url = directory(for: projectID).appendingPathComponent(relative)

@@ -12,6 +12,35 @@ extension OpenAIClientTests {
         let content = try XCTUnwrap(input.first?["content"] as? [[String: Any]])
         XCTAssertFalse((content.first?["text"] as? String ?? "").contains("\"confidence\":"))
     }
+    func testSourceCheckerNeverSeesTheExtractorNoteButGetsThePlanUnit() async throws {
+        let transport = MockTransport([(try envelope(text: "{\"checks\":[]}"), 200)])
+        var row = Observation(documentID: UUID(), variableID: "age_mean", value: "74.61", context: .init(arm: "Control"))
+        row.note = "EXTRACTOR-RATIONALE-SENTINEL: chose the control column because the header looked right"
+        do { _ = try await OpenAIClient(transport: transport).checkSources(observations: [row], variables: CoreFields.defaults, pages: [.init(number: 1, text: "Control age 74.61 years.")], images: [], model: "checker", apiKey: "test") } catch {}
+        let body = try await transport.body()
+        let input = try XCTUnwrap(body["input"] as? [[String: Any]])
+        let content = try XCTUnwrap(input.first?["content"] as? [[String: Any]])
+        let text = try XCTUnwrap(content.first?["text"] as? String)
+        XCTAssertFalse(text.contains("EXTRACTOR-RATIONALE-SENTINEL"), "The checker must not read the extractor's reasoning.")
+        XCTAssertFalse(text.contains("\"units_and_note\""))
+        XCTAssertTrue(text.contains("\"unit\":\"years\""), "The unit comes from the approved plan, not from the extractor.")
+        XCTAssertTrue(text.contains("Control"), "The claim context is part of what is being checked.")
+    }
+    func testExtractionSendsEachVariableDefinitionOnce() async throws {
+        let transport = MockTransport([(try envelope(text: "{\"observations\":[]}"), 200)])
+        let field = CoreFields.defaults[0]
+        _ = try await OpenAIClient(transport: transport).extract(pages: [.init(number: 1, text: "Data")], variables: [field], plan: ReviewPlan(), model: "test", apiKey: "test")
+        let body = try await transport.body()
+        let input = try XCTUnwrap(body["input"] as? [[String: Any]])
+        let content = try XCTUnwrap(input.first?["content"] as? [[String: Any]])
+        let text = try XCTUnwrap(content.first?["text"] as? String)
+        XCTAssertEqual(text.components(separatedBy: field.definition).count - 1, 1, "The plan context must not repeat the full dictionary that the VARIABLES section already carries.")
+        XCTAssertTrue(text.contains("\"variables\":[]"))
+    }
+    func testTransportAllowsLongNonStreamingResponses() {
+        XCTAssertGreaterThanOrEqual(URLSessionTransport.requestTimeout, 600)
+        XCTAssertGreaterThanOrEqual(URLSessionTransport.resourceTimeout, URLSessionTransport.requestTimeout)
+    }
     func testAssetDiscoveryRejectsUnrelatedPhysicalPage() async throws {
         let reply = "{\"assets\":[{\"kind\":\"figure\",\"page\":99,\"label\":\"Fig 1\",\"title\":\"Flow\",\"caption\":\"\",\"warnings\":[]}]}"
         let transport = MockTransport([(try envelope(text: reply), 200)])
