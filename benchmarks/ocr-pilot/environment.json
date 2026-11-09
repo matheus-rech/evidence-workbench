@@ -1,0 +1,26 @@
+{
+  "date_utc": "2026-11-09",
+  "hf_job_id": "6af112dce6320c66fad7a3fb",
+  "hardware_remote": "NVIDIA A10G 24 GB (a10g-small)",
+  "docker": "pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime",
+  "torch": "2.8.0+cu128",
+  "transformers": "5.22.2",
+  "python": "3.11.13",
+  "apple_os": "macOS 26.5.2 (25F84)",
+  "repeats_per_input": 2,
+  "inputs_per_engine": 7,
+  "generation_max_new_tokens": 4096,
+  "sampling": false,
+  "remote_dtype": "bfloat16",
+  "remote_model_order": [
+    "glm-ocr",
+    "paddleocr-vl-1.6"
+  ],
+  "memory_caveats": [
+    "Remote process peak RSS is cumulative and Paddle was second in process order.",
+    "CUDA peak allocated is not total reserved or whole-GPU consumption.",
+    "Apple GPU/ANE memory was not separately measured.",
+    "macOS and A10G timings are not same-hardware comparisons."
+  ],
+  "status": "28 remote inferences completed; 2 Paddle full-page outputs hit token cap and are incomplete."
+}

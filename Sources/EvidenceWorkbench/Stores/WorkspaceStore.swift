@@ -24,6 +24,8 @@ struct CloudAccess: Sendable {
     @Published private(set) var activeResearch: Set<UUID> = []
     let repository: ProjectRepository
     let client: OpenAIClient
+    let tableOCR = GLMTableClient()
+    let localTableOCR = LocalTableClient()
     private let cloud: CloudAccess
     /// The foreground operation started by `perform`; exposed so tests can await completion.
     private(set) var operation: Task<Void, Never>?
@@ -73,10 +75,9 @@ struct CloudAccess: Sendable {
         guard let project = current, let document = project.documents.first(where: { $0.id == documentID }), let region = selection.region else { return }
         perform("Transcribing selected table…") {
             let url = try await self.repository.documentURL(document, projectID: project.id)
-            let key = try self.credential()
             let png = try await RegionExport.image(url: url, pageNumber: selection.page, region: region)
             let image = try RegionExport.jpeg(png, page: selection.page)
-            let response = try await self.client.transcribeTable(image: image, model: self.extractionModel, apiKey: key)
+            let response = try await self.transcribeSourceTable(image: image)
             guard !response.columns.isEmpty else { throw WorkbenchError.invalid("No readable table was returned for this box. Include the complete table, headers and footnotes, then try again.") }
             let table = EditableTable(title: response.title, columns: response.columns, rows: response.rows.map(\.cells), footnotes: response.footnotes, warnings: response.warnings, sourceFilename: document.filename, sourceSHA256: document.sha256, page: selection.page, region: region)
             try table.validate()
@@ -87,6 +88,23 @@ struct CloudAccess: Sendable {
             }
             completion(asset)
         }
+    }
+
+    private func transcribeSourceTable(image: PageImage, title: String = "") async throws -> ModelTableReply {
+        if UserDefaults.standard.bool(forKey: "localPaddleTables") {
+            return try await localTableOCR.transcribe(image: image, title: title, endpoint: UserDefaults.standard.string(forKey: "localPaddleEndpoint") ?? "http://127.0.0.1:8766/table")
+        }
+        if UserDefaults.standard.bool(forKey: "huggingFaceTableConsent") {
+            do { return try await tableOCR.transcribe(image: image, title: title, token: KeychainStore.read(provider: "huggingface")) }
+            catch is CancellationError { throw CancellationError() }
+            catch {
+                guard UserDefaults.standard.bool(forKey: "tableOCRAllowOpenAIFallback") else { throw error }
+                var result = try await client.transcribeTable(image: image, model: extractionModel, apiKey: credential(), targetTitle: title)
+                result.warnings.append("GLM-OCR unavailable. This table was transcribed by the explicitly enabled OpenAI fallback, not GLM-OCR.")
+                return result
+            }
+        }
+        return try await client.transcribeTable(image: image, model: extractionModel, apiKey: credential(), targetTitle: title)
     }
 
     private func credential() throws -> String {
@@ -314,8 +332,14 @@ struct CloudAccess: Sendable {
                 if item.kind == .table {
                     progress = "Transcribing \(item.label) · \(document.filename) · page \(item.page)"
                     do {
-                        guard let image = images.first(where: { $0.page == item.page }) else { throw WorkbenchError.invalid("The table source image is unavailable.") }
-                        let reply = try await client.transcribeTable(image: image, model: extractionModel, apiKey: key, targetTitle: item.label + ": " + item.title)
+                        guard var image = images.first(where: { $0.page == item.page }) else { throw WorkbenchError.invalid("The table source image is unavailable.") }
+                        if UserDefaults.standard.bool(forKey: "huggingFaceTableConsent") || UserDefaults.standard.bool(forKey: "localPaddleTables") {
+                            asset.region = try TablePageCropper.region(url: url, pageNumber: item.page, label: item.label)
+                            let png = try await RegionExport.image(url: url, pageNumber: item.page, region: asset.region)
+                            image = try RegionExport.jpeg(png, page: item.page)
+                            asset.warnings.append("Specialist OCR input is a provisional caption-bounded region, not a precise verified crop; inspect original headers and footnotes.")
+                        }
+                        let reply = try await transcribeSourceTable(image: image, title: item.label + ": " + item.title)
                         asset.table = .init(title: reply.title, columns: reply.columns, rows: reply.rows.map(\.cells), footnotes: reply.footnotes, warnings: reply.warnings, sourceFilename: document.filename, sourceSHA256: document.sha256, page: item.page, region: asset.region)
                         try asset.validate(document: document)
                     } catch is CancellationError { throw CancellationError() }
@@ -380,10 +404,11 @@ struct CloudAccess: Sendable {
         perform("Transcribing the selected source table…") {
             try asset.validate(document: document)
             let url = try await self.repository.documentURL(document, projectID: project.id)
-            let png = try await RegionExport.image(url: url, pageNumber: asset.page, region: asset.region)
-            let reply = try await self.client.transcribeTable(image: RegionExport.jpeg(png, page: asset.page), model: self.extractionModel, apiKey: self.credential(), targetTitle: asset.label + ": " + asset.title)
-            var updated = asset
-            updated.table = .init(title: reply.title, columns: reply.columns, rows: reply.rows.map(\.cells), footnotes: reply.footnotes, warnings: reply.warnings, sourceFilename: document.filename, sourceSHA256: document.sha256, page: asset.page, region: asset.region)
+            let region = (UserDefaults.standard.bool(forKey: "huggingFaceTableConsent") || UserDefaults.standard.bool(forKey: "localPaddleTables")) && !asset.exactCrop ? try TablePageCropper.region(url: url, pageNumber: asset.page, label: asset.label) : asset.region
+            let png = try await RegionExport.image(url: url, pageNumber: asset.page, region: region)
+            let reply = try await self.transcribeSourceTable(image: RegionExport.jpeg(png, page: asset.page), title: asset.label + ": " + asset.title)
+            var updated = asset; updated.region = region
+            updated.table = .init(title: reply.title, columns: reply.columns, rows: reply.rows.map(\.cells), footnotes: reply.footnotes, warnings: reply.warnings, sourceFilename: document.filename, sourceSHA256: document.sha256, page: asset.page, region: region)
             updated.reviewedAt = nil; updated.reviewedBy = nil
             try updated.validate(document: document)
             let result = updated

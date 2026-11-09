@@ -10,7 +10,7 @@ enum AppCredentials {
         let local = Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent(".env.local")
         return FileManager.default.fileExists(atPath: local.path) ? local : nil
     }
-    static func read() throws -> String { try resolve(fileURL: keyFileURL, keychain: KeychainStore.read) }
+    static func read() throws -> String { try resolve(fileURL: keyFileURL, keychain: { try KeychainStore.read() }) }
 
     /// A configured key file wins when it holds the variable. If the file is readable but lacks OPENAI_API_KEY, the
     /// Keychain entry is used. Any other file error (missing, symlink, oversized) is reported, never bypassed.

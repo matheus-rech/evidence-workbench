@@ -1,0 +1,56 @@
+{
+  "apple-vision": {
+    "observations": 14,
+    "failures": 0,
+    "token_cap_hits": 0,
+    "median_seconds": 0.5906190276145935,
+    "maximum_process_peak_rss_bytes": 185008128,
+    "maximum_gpu_peak_allocated_bytes": null,
+    "numeric_body_recall_by_table": {
+      "Arts_2017-p7-table": 1.0,
+      "Karlsson_2018-p10-table": 1.0,
+      "Karlsson_2018-p9-table": 1.0
+    },
+    "numeric_cell_association_by_table": {
+      "Arts_2017-p7-table": null,
+      "Karlsson_2018-p10-table": null,
+      "Karlsson_2018-p9-table": null
+    }
+  },
+  "glm-ocr": {
+    "observations": 14,
+    "failures": 0,
+    "token_cap_hits": 0,
+    "median_seconds": 9.42661764799999,
+    "maximum_process_peak_rss_bytes": 3158659072,
+    "maximum_gpu_peak_allocated_bytes": 2865952256,
+    "numeric_body_recall_by_table": {
+      "Arts_2017-p7-table": 1.0,
+      "Karlsson_2018-p10-table": 1.0,
+      "Karlsson_2018-p9-table": 1.0
+    },
+    "numeric_cell_association_by_table": {
+      "Arts_2017-p7-table": 1.0,
+      "Karlsson_2018-p10-table": 1.0,
+      "Karlsson_2018-p9-table": 1.0
+    }
+  },
+  "paddleocr-vl-1.6": {
+    "observations": 14,
+    "failures": 0,
+    "token_cap_hits": 2,
+    "median_seconds": 24.721496672000058,
+    "maximum_process_peak_rss_bytes": 3671515136,
+    "maximum_gpu_peak_allocated_bytes": 2059125248,
+    "numeric_body_recall_by_table": {
+      "Arts_2017-p7-table": 1.0,
+      "Karlsson_2018-p10-table": 1.0,
+      "Karlsson_2018-p9-table": 1.0
+    },
+    "numeric_cell_association_by_table": {
+      "Arts_2017-p7-table": 1.0,
+      "Karlsson_2018-p10-table": 1.0,
+      "Karlsson_2018-p9-table": 1.0
+    }
+  }
+}

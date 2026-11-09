@@ -1,0 +1,97 @@
+[
+  {
+    "id": "Arts_2017-p7",
+    "report": "Arts_2017",
+    "page": 7,
+    "path": "inputs/Arts_2017-p7.jpg",
+    "image_sha256": "b5687f7133e91c5df10659ba4a97b506cbef7fadc63b1474fd97673f3817a76a",
+    "pdf_sha256": "5759adbb087bdd871c9057063d2589679c676c16d3aaec87d42e03816e9ad28e",
+    "width": 1391,
+    "height": 1801,
+    "task": "text"
+  },
+  {
+    "id": "Arts_2017-p7-table",
+    "report": "Arts_2017",
+    "page": 7,
+    "path": "inputs/Arts_2017-p7-table.jpg",
+    "image_sha256": "a8004c72c07f3873ecc2ddc4b8c457c2098101586b25ee3eec595d7150f70c5d",
+    "pdf_sha256": "5759adbb087bdd871c9057063d2589679c676c16d3aaec87d42e03816e9ad28e",
+    "width": 1244,
+    "height": 288,
+    "task": "table",
+    "crop_normalized": [
+      0.055,
+      0.08,
+      0.95,
+      0.24
+    ]
+  },
+  {
+    "id": "Karlsson_2018-p8",
+    "report": "Karlsson_2018",
+    "page": 8,
+    "path": "inputs/Karlsson_2018-p8.jpg",
+    "image_sha256": "6ebcd247b5ef012d2f14c0c731645ab4a4dad9b372e048ca8f4474d8fa9e6df0",
+    "pdf_sha256": "9ffd2771b631cf72e78ec84708b9ff0d0501dd70a5175b369b7de9556dc2e24f",
+    "width": 1391,
+    "height": 1801,
+    "task": "text"
+  },
+  {
+    "id": "Karlsson_2018-p9",
+    "report": "Karlsson_2018",
+    "page": 9,
+    "path": "inputs/Karlsson_2018-p9.jpg",
+    "image_sha256": "b3067f3b0cae6c8df9855c600a4b18a68ed1d7f917c91ae9d7010206d96470de",
+    "pdf_sha256": "9ffd2771b631cf72e78ec84708b9ff0d0501dd70a5175b369b7de9556dc2e24f",
+    "width": 1391,
+    "height": 1801,
+    "task": "text"
+  },
+  {
+    "id": "Karlsson_2018-p9-table",
+    "report": "Karlsson_2018",
+    "page": 9,
+    "path": "inputs/Karlsson_2018-p9-table.jpg",
+    "image_sha256": "e295a5f50e29abf556365e4b383363007e2475d3dc270ffa1927c2f245df8ce0",
+    "pdf_sha256": "9ffd2771b631cf72e78ec84708b9ff0d0501dd70a5175b369b7de9556dc2e24f",
+    "width": 1244,
+    "height": 604,
+    "task": "table",
+    "crop_normalized": [
+      0.055,
+      0.485,
+      0.95,
+      0.82
+    ]
+  },
+  {
+    "id": "Karlsson_2018-p10",
+    "report": "Karlsson_2018",
+    "page": 10,
+    "path": "inputs/Karlsson_2018-p10.jpg",
+    "image_sha256": "988a2697c7bcb8cc3481114938641c3deb057c1618c2a4dff11197a15632fc04",
+    "pdf_sha256": "9ffd2771b631cf72e78ec84708b9ff0d0501dd70a5175b369b7de9556dc2e24f",
+    "width": 1391,
+    "height": 1801,
+    "task": "text"
+  },
+  {
+    "id": "Karlsson_2018-p10-table",
+    "report": "Karlsson_2018",
+    "page": 10,
+    "path": "inputs/Karlsson_2018-p10-table.jpg",
+    "image_sha256": "ef53793d73bcb5d29938d450762b15e63faa9aaca60244a45c130854d8fc2abc",
+    "pdf_sha256": "9ffd2771b631cf72e78ec84708b9ff0d0501dd70a5175b369b7de9556dc2e24f",
+    "width": 1244,
+    "height": 324,
+    "task": "table",
+    "crop_normalized": [
+      0.055,
+      0.705,
+      0.95,
+      0.885
+    ]
+  }
+]

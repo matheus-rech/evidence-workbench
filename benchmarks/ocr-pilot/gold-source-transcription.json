@@ -1,0 +1,230 @@
+{
+  "annotation": "Source transcription from the primary article images, separate from model output. Positive Arts cells have prior pilot checks. No independent second human adjudicator has participated; independent scientific certification is not claimed. Selection is exploratory and Vision output was inspected during setup.",
+  "tables": {
+    "Arts_2017-p7-table": {
+      "rows": [
+        [
+          "N",
+          "235",
+          "496",
+          "",
+          "259",
+          "522",
+          ""
+        ],
+        [
+          "Mean age (SD)",
+          "74.61 (13.63)",
+          "72.13 (12.46)",
+          "0.08",
+          "73.73 (14.7)",
+          "72.79 (12.61)",
+          "0.52"
+        ],
+        [
+          "Mean CHA2DS2-VASc (SD)",
+          "3.06 (1.8)",
+          "3.00 (1.72)",
+          "0.52",
+          "2.27 (0.82)",
+          "2.25 (0.86)",
+          "0.13"
+        ],
+        [
+          "% CHA2DS2-VASc > 1",
+          "80",
+          "78",
+          "",
+          "76",
+          "76",
+          ""
+        ],
+        [
+          "% on OAC",
+          "40",
+          "48",
+          "0.05",
+          "51",
+          "60",
+          "0.02"
+        ],
+        [
+          "% adherence",
+          "42",
+          "50",
+          "0.04",
+          "50",
+          "55",
+          "0.23"
+        ]
+      ],
+      "doi": "10.1371/journal.pone.0170974",
+      "page": 7
+    },
+    "Karlsson_2018-p9-table": {
+      "rows": [
+        [
+          "Total population",
+          "232,561",
+          "211,786",
+          "n/a",
+          "n/a",
+          "n/a"
+        ],
+        [
+          "Total population with AF",
+          "7,764",
+          "6,370",
+          "1,857",
+          "955",
+          "902"
+        ],
+        [
+          "Total population with AF and indication for anticoagulant therapy",
+          "7,370",
+          "6,009",
+          "1,705",
+          "873",
+          "832"
+        ],
+        [
+          "Primary care clinic list size",
+          "10,570 \u00b1 5,032",
+          "10,085 \u00b1 3,658",
+          "n/a",
+          "n/a",
+          "n/a"
+        ],
+        [
+          "CHA2DS2-VASc score",
+          "4 (3\u20135)",
+          "4 (3\u20135)",
+          "3 (2\u20134)",
+          "3 (2\u20134)",
+          "3 (2\u20134)"
+        ],
+        [
+          "Age \u2265 75 years",
+          "4,622 (59%)",
+          "3,713 (58%)",
+          "1,015 (55%)",
+          "536 (56%)",
+          "479 (53%)"
+        ],
+        [
+          "Age 65\u201374 years",
+          "2,092 (27%)",
+          "1,704 (27%)",
+          "544 (29%)",
+          "262 (27%)",
+          "282 (31%)"
+        ],
+        [
+          "Age < 65 years",
+          "1,050 (14%)",
+          "953 (15%)",
+          "298 (16%)",
+          "157 (16%)",
+          "141 (16%)"
+        ],
+        [
+          "Female sex",
+          "3,328 (43%)",
+          "2,740 (43%)",
+          "784 (42%)",
+          "417 (44%)",
+          "367 (41%)"
+        ],
+        [
+          "Hypertension",
+          "6,082 (78%)",
+          "4,881 (77%)",
+          "1,289 (69%)",
+          "659 (69%)",
+          "630 (70%)"
+        ],
+        [
+          "Congestive heart failure",
+          "2,735 (35%)",
+          "2,270 (36%)",
+          "323 (17%)",
+          "161 (17%)",
+          "162 (18%)"
+        ],
+        [
+          "Diabetes mellitus",
+          "1,763 (23%)",
+          "1,454 (23%)",
+          "342 (18%)",
+          "174 (18%)",
+          "168 (19%)"
+        ],
+        [
+          "Vascular disease",
+          "2,630 (34%)",
+          "2,122 (33%)",
+          "356 (19%)",
+          "182 (19%)",
+          "174 (19%)"
+        ],
+        [
+          "Chronic kidney disease",
+          "308 (4%)",
+          "228 (4%)",
+          "52 (3%)",
+          "27 (3%)",
+          "25 (3%)"
+        ],
+        [
+          "Stroke, TIA, or systemic thromboembolism",
+          "1,435 (18%)",
+          "1,165 (18%)",
+          "260 (14%)",
+          "130 (14%)",
+          "130 (14%)"
+        ]
+      ],
+      "doi": "10.1371/journal.pmed.1002528",
+      "page": 9
+    },
+    "Karlsson_2018-p10-table": {
+      "rows": [
+        [
+          "Adherence to guidelines (%)",
+          "70.0 (95% CI 62.9\u201377.7)",
+          "70.3 (95% CI 60.4\u201379.6)",
+          "71.2 (95% CI 60.8\u201381.6)",
+          "73.0 (95% CI 64.6\u201381.4)"
+        ],
+        [
+          "Numerator (number of patients with AF adherent to guidelines)",
+          "4,187",
+          "5,186",
+          "4,346",
+          "5,734"
+        ],
+        [
+          "Denominator (total number of patients with AF)",
+          "6,009",
+          "7,370",
+          "6,156",
+          "7,861"
+        ]
+      ],
+      "doi": "10.1371/journal.pmed.1002528",
+      "page": 10
+    }
+  },
+  "figure_checks": {
+    "Karlsson_2018-p8": [
+      "8292",
+      "7861",
+      "6508",
+      "6156",
+      "955",
+      "873",
+      "902",
+      "832"
+    ]
+  }
+}

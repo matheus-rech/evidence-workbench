@@ -1,0 +1,137 @@
+{
+  "scope": "Complete automatic workflow on two complete single-page excerpts, not complete articles. All three transcriptions used the explicitly enabled OpenAI fallback after the public GLM Space exhausted anonymous quota.",
+  "sources": [
+    {
+      "ai_reviewed": 46,
+      "asset_warnings": [
+        "GLM-OCR input is a provisional caption-bounded region, not a precise verified crop; inspect original headers and footnotes.",
+        "GLM-OCR input is a provisional caption-bounded region, not a precise verified crop; inspect original headers and footnotes."
+      ],
+      "assets": 2,
+      "elapsed_seconds": 66.86923599243164,
+      "error": "",
+      "observations": 74,
+      "source": "Arts_2017_physical_page_7_excerpt.pdf",
+      "tables": 2
+    },
+    {
+      "ai_reviewed": 2,
+      "asset_warnings": [
+        "GLM-OCR input is a provisional caption-bounded region, not a precise verified crop; inspect original headers and footnotes."
+      ],
+      "assets": 2,
+      "elapsed_seconds": 52.10139298439026,
+      "error": "",
+      "observations": 59,
+      "source": "Karlsson_2018_physical_page_10_excerpt.pdf",
+      "tables": 1
+    }
+  ],
+  "table_checks": [
+    {
+      "source": "Arts_2017_physical_page_7_excerpt.pdf",
+      "table": "Table 1",
+      "actual_provider": "OpenAI explicit fallback",
+      "numeric_body_check": {
+        "body_numeric_tokens": 40,
+        "body_numeric_recall": 1.0,
+        "grid_cells_correct": 36,
+        "grid_cells_total": 36,
+        "numeric_cell_association_accuracy": 1.0,
+        "structured_grid_produced": true
+      }
+    },
+    {
+      "source": "Karlsson_2018_physical_page_10_excerpt.pdf",
+      "table": "Table 2",
+      "actual_provider": "OpenAI explicit fallback",
+      "numeric_body_check": {
+        "body_numeric_tokens": 24,
+        "body_numeric_recall": 1.0,
+        "grid_cells_correct": 12,
+        "grid_cells_total": 12,
+        "numeric_cell_association_accuracy": 1.0,
+        "structured_grid_produced": true
+      }
+    }
+  ],
+  "human_verified_observations": 0,
+  "exports": [
+    {
+      "id": "64BCF0C1-CA22-405E-BDE4-061BFA70D45D",
+      "files": [
+        {
+          "name": "2974FA4B-13AE-4BFB-BF1A-4C52501DF1A9.csv",
+          "sha256": "327703dfdc9804bc755e84f874fb86f774a15d751e12ebe6d5f77aa0e1b184ca"
+        },
+        {
+          "name": "2974FA4B-13AE-4BFB-BF1A-4C52501DF1A9.html",
+          "sha256": "7a5b6dbee2e174503858e14e9552438a52ceda9021ee787d75498829c9f08eb6"
+        },
+        {
+          "name": "2974FA4B-13AE-4BFB-BF1A-4C52501DF1A9.png",
+          "sha256": "05faa21ce9a19dead04b4559b27d4bb5379eee6736f6c51797f949f77b9c2ab0"
+        },
+        {
+          "name": "C6E82363-5BB5-4CC0-A147-020EC9236F2F.png",
+          "sha256": "05faa21ce9a19dead04b4559b27d4bb5379eee6736f6c51797f949f77b9c2ab0"
+        },
+        {
+          "name": "ai-reviewed.csv",
+          "sha256": "918dee93456b773c9e0003593004c4cda58ea7bb3fab56efe401beec25133b60"
+        },
+        {
+          "name": "all-observations.csv",
+          "sha256": "bd5300f097c4d29959f04a55f28a48a82c990eb273d388e619ee342f8fe95ae9"
+        },
+        {
+          "name": "manifest.json",
+          "sha256": "0da6a3e8fc03843696d9f5a28c6e5bdc9a7f60b6b4b2228935c7b4a7b959df2d"
+        }
+      ],
+      "ai_reviewed_export_rows": 2
+    },
+    {
+      "id": "425761A9-7710-4C64-AB18-0953AA23329E",
+      "files": [
+        {
+          "name": "64F12BB9-825C-468D-BF7E-159A64D6384C.csv",
+          "sha256": "532a77e8663c3545a60640be35b05b2a1b8e12de9bc723402741f351d2de2307"
+        },
+        {
+          "name": "64F12BB9-825C-468D-BF7E-159A64D6384C.html",
+          "sha256": "a492b220259a1896d135f9430b93cabd4f34713ae0d3e71447d441d05b22f699"
+        },
+        {
+          "name": "64F12BB9-825C-468D-BF7E-159A64D6384C.png",
+          "sha256": "b8fe82e89ccc1b298bdb4449cee1ba96e3df3ab8f00079a50d82af13f5bfb7aa"
+        },
+        {
+          "name": "D41CDC4E-D013-45AF-A9EB-8986FE8C4330.csv",
+          "sha256": "96c12ea4630b7b90b8b5849bf53293851f230ac88280a6713746c8fd39f38158"
+        },
+        {
+          "name": "D41CDC4E-D013-45AF-A9EB-8986FE8C4330.html",
+          "sha256": "4ac4b8fadfd612310aba108e89bdc8a1828c532c68c5acf0a7409958ab49f49a"
+        },
+        {
+          "name": "D41CDC4E-D013-45AF-A9EB-8986FE8C4330.png",
+          "sha256": "b8fe82e89ccc1b298bdb4449cee1ba96e3df3ab8f00079a50d82af13f5bfb7aa"
+        },
+        {
+          "name": "ai-reviewed.csv",
+          "sha256": "1c9ee4ef7e1c661076cbff21ca056eed92d0822da03a935d029c55a2018810d7"
+        },
+        {
+          "name": "all-observations.csv",
+          "sha256": "353ad70c4231e00490d82f40079311364a32d7e9e4f861cdd8208fdd4b046e73"
+        },
+        {
+          "name": "manifest.json",
+          "sha256": "ddf7dfec0c596144d4c01822a92ca8beab51ef19d2dcf3fad08c9f0cbc7d546c"
+        }
+      ],
+      "ai_reviewed_export_rows": 46
+    }
+  ]
+}
