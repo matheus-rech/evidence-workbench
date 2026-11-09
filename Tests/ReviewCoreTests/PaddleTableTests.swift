@@ -26,10 +26,10 @@ final class PaddleTableTests:XCTestCase {
     func testLocalClientUsesPinnedPaddleResponse() async throws {
         let payload:[String:String] = ["text":"<fcel>Measure<fcel>Control<nl><fcel>N<fcel>235<nl>","model_revision":"132c45f52c0a26ed5a6b2f6bd8e3985794cc27dd"]
         let transport=PaddleReplyTransport(data:try JSONSerialization.data(withJSONObject:payload))
-        let table=try await LocalTableClient(transport:transport).transcribe(image:PageImage(page:1,dataURL:"data:image/jpeg;base64,AA=="),title:"T",endpoint:"http://127.0.0.1:8766/table")
+        let table=try await LocalTableClient(transport:transport).transcribe(image:PageImage(page:1,dataURL:"data:image/jpeg;base64,AA=="),title:"T",endpoint:"http://127.0.0.1:8766/table",token:"synthetic-test-token-with-32-characters")
         XCTAssertEqual(table.rows.map(\.cells),[["N","235"]]);XCTAssertTrue(table.warnings[0].contains("PaddleOCR"))
         let request=await transport.sent
-        XCTAssertEqual(request?.url?.path,"/table");XCTAssertEqual(request?.httpMethod,"POST")
+        XCTAssertEqual(request?.value(forHTTPHeaderField:"Authorization"),"Bearer synthetic-test-token-with-32-characters");XCTAssertEqual(request?.url?.path,"/table");XCTAssertEqual(request?.httpMethod,"POST")
         let body=try JSONSerialization.jsonObject(with:XCTUnwrap(request?.httpBody)) as? [String:String]
         XCTAssertEqual(body?["image"],"data:image/jpeg;base64,AA==")
     }

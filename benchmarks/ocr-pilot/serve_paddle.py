@@ -2,12 +2,20 @@
 Install torch, transformers==5.22.2, accelerate, Pillow. Not started by the app.
 CUDA GPU required for this measured configuration; Apple Silicon has not been validated.
 """
-import base64, io, json
+import base64, io, json, os, secrets
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 REVISION = '132c45f52c0a26ed5a6b2f6bd8e3985794cc27dd'
 
+def authorized(headers, token):
+    return (len(token) >= 32 and headers.get('Origin') is None
+            and headers.get('Content-Type', '').split(';')[0].strip().lower() == 'application/json'
+            and secrets.compare_digest(headers.get('Authorization', ''), 'Bearer ' + token))
+
 def main():
+    token = os.environ.get('EW_PADDLE_TOKEN', '')
+    if len(token) < 32 or any(c.isspace() for c in token):
+        raise SystemExit('Set a fresh EW_PADDLE_TOKEN of at least 32 characters before starting. Never expose it in logs.')
     import torch
     from PIL import Image
     from transformers import AutoProcessor, AutoModelForImageTextToText
@@ -19,6 +27,9 @@ def main():
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_): pass  # Never log document images or request bodies.
         def do_POST(self):
+            if not authorized(self.headers, token):
+                self.send_response(403); self.send_header('Content-Length','0');self.end_headers();return
+            self.connection.settimeout(30)
             try:
                 if self.path != '/table': raise ValueError('Unsupported route')
                 n = int(self.headers.get('Content-Length', '0'))

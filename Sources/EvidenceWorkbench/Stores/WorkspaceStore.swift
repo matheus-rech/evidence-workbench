@@ -92,7 +92,7 @@ struct CloudAccess: Sendable {
 
     private func transcribeSourceTable(image: PageImage, title: String = "") async throws -> ModelTableReply {
         if UserDefaults.standard.bool(forKey: "localPaddleTables") {
-            return try await localTableOCR.transcribe(image: image, title: title, endpoint: UserDefaults.standard.string(forKey: "localPaddleEndpoint") ?? "http://127.0.0.1:8766/table")
+            return try await localTableOCR.transcribe(image: image, title: title, endpoint: UserDefaults.standard.string(forKey: "localPaddleEndpoint") ?? "http://127.0.0.1:8766/table", token: KeychainStore.read(provider: "paddle"))
         }
         if UserDefaults.standard.bool(forKey: "huggingFaceTableConsent") {
             do { return try await tableOCR.transcribe(image: image, title: title, token: KeychainStore.read(provider: "huggingface")) }

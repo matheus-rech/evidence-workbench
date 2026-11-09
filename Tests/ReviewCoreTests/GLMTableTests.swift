@@ -11,6 +11,20 @@ final class GLMTableTests: XCTestCase {
             XCTAssertThrowsError(try GLMTableParser.parse(html,title:"T"))
         }
     }
+    func testImageTransportRejectsRedirectRequestBody() throws {
+        let url=try XCTUnwrap(URL(string:"http://127.0.0.1:8766/table"));let session=URLSession(configuration:.ephemeral)
+        defer {session.invalidateAndCancel()}
+        let task=session.dataTask(with:url);var redirected=URLRequest(url:try XCTUnwrap(URL(string:"https://unapproved.invalid/upload")));redirected.httpMethod="POST";redirected.httpBody=Data("sensitive-image".utf8)
+        let response=try XCTUnwrap(HTTPURLResponse(url:url,statusCode:307,httpVersion:nil,headerFields:["Location":"https://unapproved.invalid/upload"]))
+        var called=false
+        RejectRedirectDelegate().urlSession(session,task:task,willPerformHTTPRedirection:response,newRequest:redirected) { request in called=true;XCTAssertNil(request) }
+        XCTAssertTrue(called)
+    }
+    func testMissingRowAndEmptyCornerGroupedHeaders() throws {
+        XCTAssertThrowsError(try GLMTableParser.parse("<table><tr><td>A</td><td>B</td></tr><tr></tr></table>",title:"T"))
+        let table=try GLMTableParser.parse("<table><tr><th></th><th colspan='2'>Treatment</th></tr><tr><th>Measure</th><th>Before</th><th>After</th></tr><tr><td>N</td><td>12</td><td>15</td></tr></table>",title:"T")
+        XCTAssertEqual(table.columns,["Measure","Treatment / Before","Treatment / After"]);XCTAssertEqual(table.rows.map(\.cells),[["N","12","15"]])
+    }
     func testMultipleAndTruncatedTablesAreRejected() {
         let one="<table><tr><td>A</td></tr><tr><td>1</td></tr></table>"
         XCTAssertThrowsError(try GLMTableParser.parse(one+one,title:"T"))

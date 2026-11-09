@@ -3,11 +3,13 @@ import Foundation
 /// Loopback-only specialist service. Models remain outside the application bundle.
 public actor LocalTableClient {
     private let transport: any ResponsesTransport
-    public init(transport: any ResponsesTransport = URLSessionTransport()) { self.transport = transport }
-    public func transcribe(image: PageImage, title: String, endpoint: String) async throws -> ModelTableReply {
+    public init(transport: any ResponsesTransport = URLSessionTransport(allowRedirects: false)) { self.transport = transport }
+    public func transcribe(image: PageImage, title: String, endpoint: String, token: String = "") async throws -> ModelTableReply {
         guard let url = URL(string: endpoint), url.scheme == "http", ["127.0.0.1", "localhost", "[::1]"].contains(url.host?.lowercased() ?? ""), url.user == nil, url.password == nil, url.query == nil, url.fragment == nil else { throw WorkbenchError.invalid("Local PaddleOCR requires an HTTP loopback endpoint. No remote image was sent.") }
+        guard token.count >= 32, !token.contains(where: { $0.isWhitespace }) else { throw WorkbenchError.invalid("Configure this run’s local Paddle service token in Settings before sending an image.") }
         guard image.page > 0, image.dataURL.hasPrefix("data:image/jpeg;base64,"), image.dataURL.count <= 5_400_000 else { throw WorkbenchError.invalid("Local table OCR requires one bounded JPEG.") }
         var request = URLRequest(url: url); request.httpMethod = "POST"
+        request.setValue("Bearer " + token, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: ["image": image.dataURL])
         let (data, status, _) = try await transport.send(request)
@@ -50,7 +52,11 @@ public enum PaddleTableParser {
         if fullRows.contains(0), grid[0][0].lowercased().hasPrefix("table") { grid.removeFirst(); fullRows = Set(fullRows.map { $0 - 1 }) }
         grid = grid.enumerated().filter { !fullRows.contains($0.offset) }.map(\.element)
         guard grid.count >= 2 else { throw WorkbenchError.invalid("Paddle table has no body rows.") }
-        let html = "<table>" + grid.map { "<tr>" + $0.map { "<td>" + escape($0) + "</td>" }.joined() + "</tr>" }.joined() + "</table>"
+        let htmlRows: [String] = grid.map { row in
+            let cells: [String] = row.map { value in "<td>" + escape(value) + "</td>" }
+            return "<tr>" + cells.joined() + "</tr>"
+        }
+        let html: String = "<table>" + htmlRows.joined() + "</table>"
         var result = try GLMTableParser.parse(html, title: title)
         result.footnotes = notes
         result.warnings = ["PaddleOCR-VL-1.6 local AI draft, measured model revision 132c45f. Check headers, units, spans and omitted footnotes. This does not verify dataset observations."]

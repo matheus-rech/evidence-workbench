@@ -5,11 +5,15 @@ from pathlib import Path
 
 def numeric(text):
  # Numeric values, not typography: thousands separators and trailing decimal zeros are equivalent.
- raw=re.findall(r'(?<![\d.])\d+(?:,\d{3})*(?:\.\d+)?(?![\d.])',text)
- return [str(Decimal(n.replace(',','')).normalize()) for n in raw]
+ text=re.sub(r'(?<=\d)\s*[-–—]\s*(?=\d)', '–', text)
+ text=re.sub(r'(?<![\d.])([−-])\s+(?=\d)', r'\1', text)
+ raw=re.findall(r'(?<![\d.])[+−-]?\d+(?:,\d{3})*(?:\.\d+)?(?![\d.])',text)
+ return [str(Decimal(n.replace(',','').replace('−','-')).normalize()) for n in raw]
 def cell_signature(text):
  text=re.sub(r'<[^>]*>',' ',text).replace('\\pm','±')
- return (numeric(text), '±' in text, text.count('%'), text.lower().count('ci'), bool(re.search(r'n\s*/\s*a',text,re.I)), not text.strip())
+ values=numeric(text)
+ categorical=re.sub(r'\s+',' ',text).strip().casefold() if not values else ''
+ return (values, categorical, '±' in text, text.count('%'), text.lower().count('ci'), bool(re.search(r'n\s*/\s*a',text,re.I)), not text.strip())
 class Tables(HTMLParser):
  def __init__(self):super().__init__();self.tables=[];self.table=None;self.row=None;self.cell=None
  def handle_starttag(self,tag,attrs):

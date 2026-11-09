@@ -4,7 +4,7 @@ import Foundation
 public actor GLMTableClient {
     private let transport: any ResponsesTransport
     private let endpoint = "https://prithivmlmods-glm-ocr-demo.hf.space/gradio_api/call/run_router"
-    public init(transport: any ResponsesTransport = URLSessionTransport()) { self.transport = transport }
+    public init(transport: any ResponsesTransport = URLSessionTransport(allowRedirects: false)) { self.transport = transport }
     public func transcribe(image: PageImage, title: String = "", token: String = "") async throws -> ModelTableReply {
         guard image.page > 0, image.dataURL.hasPrefix("data:image/jpeg;base64,"), image.dataURL.count <= 5_400_000 else { throw WorkbenchError.invalid("Table OCR requires one bounded JPEG image.") }
         var request = URLRequest(url: URL(string: endpoint)!); request.httpMethod = "POST"
@@ -49,9 +49,12 @@ public enum GLMTableParser {
         guard (2...500).contains(rows.count) else { throw WorkbenchError.invalid("Table OCR returned no complete bounded grid.") }
         var occupied: [Int: [Int: String]] = [:]
         var fullWidthRows: [Int: Int] = [:]
+        var explicitHeaderRows: Set<Int> = []
+        var firstRowGrouped = false
         for (r, match) in rows.enumerated() {
             let row = source.substring(with: match.range(at: 1)); let rowText = row as NSString
             let cells = try matches("<t[dh]\\b([^>]*)>(.*?)</t[dh]>", row)
+            if !cells.isEmpty, try matches("<th\\b", row).count == cells.count { explicitHeaderRows.insert(r) }
             var c = 0
             for cell in cells {
                 while occupied[r]?[c] != nil { c += 1 }
@@ -62,6 +65,7 @@ public enum GLMTableParser {
                     return n
                 }
                 let across = try span("colspan"), down = try span("rowspan")
+                if r == 0 && across > 1 && cells.count > 1 { firstRowGrouped = true }
                 if cells.count == 1 && across > 1 { fullWidthRows[r] = across }
                 guard c + across <= 40, r + down <= rows.count else { throw WorkbenchError.invalid("Table OCR span exceeds the grid.") }
                 let raw = rowText.substring(with: cell.range(at: 2))
@@ -77,9 +81,14 @@ public enum GLMTableParser {
             }
         }
         let width = (occupied[0]?.keys.max() ?? -1) + 1
-        guard (1...40).contains(width), occupied.values.allSatisfy({ $0.count == width }) else { throw WorkbenchError.invalid("Table OCR returned ragged rows; no column was guessed or shifted.") }
+        guard (1...40).contains(width), rows.indices.allSatisfy({ occupied[$0]?.count == width && Set(occupied[$0]?.keys.map { $0 } ?? []) == Set(0..<width) }) else { throw WorkbenchError.invalid("Table OCR returned ragged rows; no column was guessed or shifted.") }
         let grid = rows.indices.map { r in (0..<width).map { occupied[r]?[$0] ?? "" } }
         var headers = 1
+        while headers < min(8, grid.count - 1), explicitHeaderRows.contains(headers) { headers += 1 }
+        if headers == 1, firstRowGrouped, grid[0][0].isEmpty, grid.count > 2 {
+            guard explicitHeaderRows.contains(1) else { throw WorkbenchError.invalid("A grouped table with an empty corner needs explicit header rows; no header/data boundary was guessed.") }
+            headers = 2
+        }
         while headers < min(8, grid.count - 1), !grid[0][0].isEmpty, grid[headers][0] == grid[0][0] { headers += 1 }
         let columns = (0..<width).map { column -> String in
             var labels: [String] = []

@@ -12,6 +12,7 @@ struct SettingsView: View {
     @AppStorage("tableOCRAllowOpenAIFallback") private var tableFallback = false
     @AppStorage("localPaddleTables") private var localPaddle = false
     @AppStorage("localPaddleEndpoint") private var paddleEndpoint = "http://127.0.0.1:8766/table"
+    @State private var paddleToken = ""
     @State private var hfToken = ""
     @State private var key = ""
     @State private var message = ""
@@ -57,6 +58,11 @@ struct SettingsView: View {
                 Text("Apple Vision stays local for OCR. The real-article pilot found that specialist table OCR preserves structure better than text-only OCR; it is not a broad scientific accuracy guarantee.").font(.caption).foregroundStyle(.secondary)
                 Toggle("Use local PaddleOCR-VL-1.6 tables (takes priority)", isOn: $localPaddle)
                 TextField("Local Paddle endpoint", text: $paddleEndpoint)
+                SecureField("Current local Paddle service token", text: $paddleToken)
+                HStack {
+                    Button("Save local Paddle token") { do { try KeychainStore.save(paddleToken.trimmingCharacters(in: .whitespacesAndNewlines),provider:"paddle");paddleToken="";message="Local Paddle token saved separately in Keychain." } catch {message=error.localizedDescription} }.disabled(paddleToken.count < 32)
+                    Button("Remove local Paddle token") { do {try KeychainStore.delete(provider:"paddle");message="Local Paddle token removed."}catch{message=error.localizedDescription} }
+                }
                 Text("Best table latency in the small GPU pilot. Requires a separately started local service; no weights are downloaded by this app. The supplied service uses CUDA and has not been validated on Apple Silicon. If unavailable, tables remain unresolved; no remote fallback is applied to local mode.").font(.caption).foregroundStyle(.secondary)
                 Toggle("Use GLM-OCR tables and allow sending table images to Hugging Face", isOn: $huggingFaceTables)
                 SecureField("Optional Hugging Face token for Space quota", text: $hfToken)

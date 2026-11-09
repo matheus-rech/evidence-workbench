@@ -7,6 +7,12 @@ class OCRScoringTests(unittest.TestCase):
   self.assertNotEqual(score.cell_signature('10,570 ± 5,032'),score.cell_signature('10,570 - 5,032'))
   self.assertNotEqual(score.cell_signature('73%'),score.cell_signature('73'))
   self.assertEqual(score.cell_signature('70.0 (95% CI 62.9–77.7)'),score.cell_signature('70 (95%CI62.9-77.7)'))
+ def test_signed_and_categorical_values_are_distinct(self):
+  self.assertNotEqual(score.cell_signature('-7'),score.cell_signature('7'))
+  self.assertEqual(score.numeric('- 7'),score.numeric('−7'))
+  self.assertNotEqual(score.cell_signature('yes'),score.cell_signature('no'))
+  self.assertNotEqual(score.cell_signature('n/a'),score.cell_signature('not assessed'))
+  self.assertEqual(score.numeric('95% CI 62.9-77.7'),score.numeric('95% CI 62.9–77.7'))
  def test_grid_positions_not_just_bag_of_numbers(self):
   gold=[['N','235','496'],['Mean','74.61','72.13']]
   shifted='<table><tr><td>N</td><td>496</td><td>235</td></tr><tr><td>Mean</td><td>72.13</td><td>74.61</td></tr></table>'

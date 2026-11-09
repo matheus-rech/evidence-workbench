@@ -5,7 +5,7 @@ import ReviewCore
 enum KeychainStore {
     private static var service: String { Bundle.main.object(forInfoDictionaryKey: "EWIsolatedReview") as? Bool == true ? "com.matheusrech.EvidenceWorkbench.Review.openai" : "com.matheusrech.EvidenceWorkbench.openai" }
     private static let account = "api-key"
-    private static func query(_ provider: String) -> [String: Any] { [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: provider == "huggingface" ? service + ".huggingface" : service, kSecAttrAccount as String: account] }
+    private static func query(_ provider: String) -> [String: Any] { [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: provider == "openai" ? service : service + "." + provider, kSecAttrAccount as String: account] }
     static func read(provider: String = "openai") throws -> String {
         var request = query(provider); request[kSecReturnData as String] = true; request[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: CFTypeRef?

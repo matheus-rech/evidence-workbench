@@ -52,7 +52,13 @@ public struct SourceAsset: Codable, Equatable, Sendable, Identifiable {
             if let index = result.firstIndex(where: { $0.sourceKey == value.sourceKey }) {
                 // Preserve reviewed transcriptions, manual crops and user edits on rerun.
                 if result[index].reviewedAt == nil && result[index].origin == "AI discovery" {
-                    var replacement = value; replacement.id = result[index].id; result[index] = replacement
+                    if result[index].table != nil && value.table == nil && result[index].sourceSHA256 == value.sourceSHA256 {
+                        var retained = result[index]
+                        for warning in value.warnings where !retained.warnings.contains(warning) { retained.warnings.append(warning) }
+                        retained.warnings = Array(retained.warnings.suffix(50)); result[index] = retained
+                    } else {
+                        var replacement = value; replacement.id = result[index].id; result[index] = replacement
+                    }
                 }
             } else { result.append(value) }
         }
