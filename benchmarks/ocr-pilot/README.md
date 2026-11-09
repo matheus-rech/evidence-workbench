@@ -45,6 +45,8 @@ The OpenAI vision path remains available. GLM → OpenAI continuity requires an 
 
 The actual application store ran extraction → source checks → discovery → transcription → CSV/HTML/PNG + manifest export on two complete single-page source excerpts (Arts page 7, Karlsson page 10). The first run exposed quota-related missing tables; it is not counted as complete acceptance. After the explicit fallback correction, a fresh isolated run passed in 119.3 s: 74 and 59 observations, 46 and 2 AI-reviewed rows, 2 and 1 transcribed tables, zero human-verified observations. All three final table transcriptions used **OpenAI fallback**, not Paddle or GLM. The 48 annotated body cells in the two gold tables present in that run matched. Raw automatic evidence is in `automatic-acceptance.json`; this does not validate every extracted field, a complete article, or local Paddle inference end to end.
 
+A further real automatic rerun after endpoint/access hardening passed in 122.4 s, with 62/58 observations and 34/4 AI-reviewed rows, all 3 tables exported and the same 48 checked body cells matching. See `automatic-acceptance-hardened.json` for its actual source commit. Counts changed between runs, so table-cell agreement does not establish stability or accuracy of every extraction field.
+
 Offline production-parser regression tests consume the real Paddle inference responses, preserve table spans/blank cells/notes and reject malformed grids. These tests are response replay, not another live model run.
 
 ## Reproduce and independently adjudicate

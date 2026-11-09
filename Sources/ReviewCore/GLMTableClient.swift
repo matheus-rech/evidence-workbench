@@ -84,7 +84,7 @@ public enum GLMTableParser {
         guard (1...40).contains(width), rows.indices.allSatisfy({ occupied[$0]?.count == width && Set(occupied[$0]?.keys.map { $0 } ?? []) == Set(0..<width) }) else { throw WorkbenchError.invalid("Table OCR returned ragged rows; no column was guessed or shifted.") }
         let grid = rows.indices.map { r in (0..<width).map { occupied[r]?[$0] ?? "" } }
         var headers = 1
-        while headers < min(8, grid.count - 1), explicitHeaderRows.contains(headers) { headers += 1 }
+        while headers < min(8, grid.count - 1), explicitHeaderRows.contains(headers), fullWidthRows[headers] != width { headers += 1 }
         if headers == 1, firstRowGrouped, grid[0][0].isEmpty, grid.count > 2 {
             guard explicitHeaderRows.contains(1) else { throw WorkbenchError.invalid("A grouped table with an empty corner needs explicit header rows; no header/data boundary was guessed.") }
             headers = 2

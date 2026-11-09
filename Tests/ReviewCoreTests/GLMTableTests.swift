@@ -20,6 +20,10 @@ final class GLMTableTests: XCTestCase {
         RejectRedirectDelegate().urlSession(session,task:task,willPerformHTTPRedirection:response,newRequest:redirected) { request in called=true;XCTAssertNil(request) }
         XCTAssertTrue(called)
     }
+    func testFullWidthHeaderStyledNoteRemainsAFootnote() throws {
+        let table=try GLMTableParser.parse("<table><tr><th>Measure</th><th>Value</th></tr><tr><th colspan='2'>Note: adjusted values</th></tr><tr><td>N</td><td>12</td></tr></table>",title:"T")
+        XCTAssertEqual(table.columns,["Measure","Value"]);XCTAssertEqual(table.footnotes,["Note: adjusted values"]);XCTAssertEqual(table.rows.map(\.cells),[["N","12"]])
+    }
     func testMissingRowAndEmptyCornerGroupedHeaders() throws {
         XCTAssertThrowsError(try GLMTableParser.parse("<table><tr><td>A</td><td>B</td></tr><tr></tr></table>",title:"T"))
         let table=try GLMTableParser.parse("<table><tr><th></th><th colspan='2'>Treatment</th></tr><tr><th>Measure</th><th>Before</th><th>After</th></tr><tr><td>N</td><td>12</td><td>15</td></tr></table>",title:"T")
