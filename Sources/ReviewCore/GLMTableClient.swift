@@ -88,7 +88,7 @@ public enum GLMTableParser {
         while headers < min(8, grid.count - 1), explicitHeaderRows.contains(headers) {
             if fullWidthRows[headers] == width {
                 let label = grid[headers][0].trimmingCharacters(in: .whitespacesAndNewlines)
-                let markedNote = label.range(of: "^(note|footnote|source)\\b", options: [.regularExpression, .caseInsensitive]) != nil
+                let markedNote = label.range(of: "^(notes?|footnotes?|sources?)\\b", options: [.regularExpression, .caseInsensitive]) != nil
                 if markedNote { headerNotes.insert(headers) }
                 else if !explicitHeaderRows.contains(headers + 1) || fullWidthRows[headers + 1] == width {
                     throw WorkbenchError.invalid("A full-width header may be a heading or note. Its role is ambiguous; no table structure was guessed.")
