@@ -34,7 +34,7 @@ export APP BUILD_COMMIT BUILD_SOURCE_HASH
 python3 - <<'PY'
 import os, pathlib, plistlib
 app=pathlib.Path(os.environ['APP'])
-p={'CFBundleExecutable':'EvidenceWorkbenchReview','CFBundleIdentifier':'com.matheusrech.EvidenceWorkbench.Review','CFBundleName':'Evidence Workbench Review','CFBundleDisplayName':'Evidence Workbench Review','CFBundlePackageType':'APPL','CFBundleShortVersionString':'0.5.0','CFBundleVersion':'5','LSMinimumSystemVersion':'14.0','NSPrincipalClass':'NSApplication','NSHighResolutionCapable':True,'EWIsolatedReview':True,'EWBuildBaseCommit':os.environ['BUILD_COMMIT'],'EWBuildSourceDiffSHA256':os.environ['BUILD_SOURCE_HASH']}
+p={'CFBundleExecutable':'EvidenceWorkbenchReview','CFBundleIdentifier':'com.matheusrech.EvidenceWorkbench.Review','CFBundleName':'Evidence Workbench Review','CFBundleDisplayName':'Evidence Workbench Review','CFBundlePackageType':'APPL','CFBundleShortVersionString':'0.6.0','CFBundleVersion':'6','LSMinimumSystemVersion':'14.0','NSPrincipalClass':'NSApplication','NSHighResolutionCapable':True,'EWIsolatedReview':True,'EWBuildBaseCommit':os.environ['BUILD_COMMIT'],'EWBuildSourceDiffSHA256':os.environ['BUILD_SOURCE_HASH']}
 (app/'Contents/Info.plist').write_bytes(plistlib.dumps(p))
 PY
 chmod +x "$APP/Contents/MacOS/EvidenceWorkbenchReview"

@@ -33,16 +33,18 @@ All observation verification and dataset exports rehash originals. Saved human/A
 
 ## OCR and evaluation
 
-Apple Vision is still the local OCR engine; PDFKit supplies native text. OpenAI visual extraction is a separate opt-in cloud feature. [Open local OCR comparison and benchmark plan](docs/OCR_OPTIONS.md) covers PaddleOCR-VL, GLM-OCR/MLX, LightOnOCR and olmOCR. No new OCR model has been installed or declared a local benchmark winner.
+Apple Vision is still the local OCR engine; PDFKit supplies native text. OpenAI visual extraction is a separate opt-in cloud feature. [Open local OCR comparison and benchmark plan](docs/OCR_OPTIONS.md) covers PaddleOCR-VL, GLM-OCR/MLX, LightOnOCR and olmOCR. The [real-paper OCR pilot](benchmarks/ocr-pilot/README.md) now records 42 runs on identical inputs, numeric-cell checks, time/memory and failures. No model weights were installed on this Mac. Optional local PaddleOCR-VL-1.6 and hosted GLM-OCR table specialists are integrated; see the pilot for deployment requirements, separate consent and explicit OpenAI fallback.
 
-[Source-check benchmark](benchmarks/README.md) contains 20 frozen regression claims with positive and negative cases, a strict scorer and the historically observed false-support case. It is a small engineering regression corpus. Independent second adjudication, held-out model accuracy and full OCR comparisons remain pending; unit-test success is not a model-quality estimate. Live extraction tests are paid and opt-in. Local suite reports OCR/environment skips explicitly. CI configuration is provided for macOS but has not been run on GitHub by this task.
+[Source-check benchmark](benchmarks/README.md) contains 20 frozen regression claims with positive and negative cases, a strict scorer and the historically observed false-support case. It is a small engineering regression corpus. Independent second adjudication and held-out model accuracy remain pending; unit-test success is not a model-quality estimate. Live extraction tests are paid and opt-in. Local suite reports OCR/environment skips explicitly. The preceding integrity release passed GitHub macOS CI and was merged in PR #5. This OCR change is separately reviewable.
 
-## Data sent to OpenAI
+## Cloud data and local table services
 
 Planning: plan, protocols and recent chat. Extraction: approved definitions, text and optional images. Checker: claim/context, definition/unit and neighboring source pages/images, without extractor rationale/confidence. Assets: source-page images; tables: selected image. Structured calls set `store=false`; background research uses web search and `store=true`. Model availability and charges depend on your account. Manual work, PDF viewing and Vision OCR remain offline.
+
+Optional GLM table images go to a separate Hugging Face community Space only after its Settings consent. Its optional HF token is stored separately in Keychain; the ChatGPT MCP connection does not automatically transfer that credential. Explicit GLM-to-OpenAI fallback requires OpenAI consent/key and is labeled per table. Local Paddle mode sends only to a configured loopback service, never automatically starts or downloads model weights, and does not fall back remotely.
 
 Protocol approvals and independent human reviewer conduct are responsibilities of the review team. The software does not certify Cochrane/PRISMA compliance or perform statistical pooling. Original pilot documents under `docs/REAL_WORLD_PILOT.md` and `docs/VALIDATION.md` are historical records, not validation of this corrected build.
 
 ## License
 
-MIT, as selected by the repository owner for this review copy. Article PDFs, figures, model weights and external runtimes retain their respective licenses. Nothing has been pushed or published by this task.
+MIT, as selected by the repository owner for this review copy. Article PDFs, figures, model weights and external runtimes retain their respective licenses. Article benchmark excerpts carry CC BY attribution in the OCR pilot; model weights are not included.

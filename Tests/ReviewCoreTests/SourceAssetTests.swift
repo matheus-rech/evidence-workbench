@@ -11,6 +11,13 @@ final class SourceAssetTests: XCTestCase {
         asset.table = nil; asset.sourceSHA256 = "wrong"
         XCTAssertThrowsError(try asset.validate(document: document))
     }
+    func testFailedRediscoveryPreservesPriorTableAndRegionWithWarning() {
+        var saved=SourceAsset(documentID:UUID(),sourceSHA256:"hash",page:1,kind:.table,label:"Table 1",title:"Prior",region:.init(x:0.1,y:0.2,width:0.7,height:0.3))
+        saved.table=EditableTable(title:"Prior",columns:["N"],rows:[["235"]],sourceFilename:"trial.pdf",sourceSHA256:"hash",page:1,region:saved.region)
+        var incoming=saved;incoming.table=nil;incoming.region = .init(x:0,y:0,width:1,height:1);incoming.warnings=["Transcription failed"]
+        let result=SourceAsset.merge(existing:[saved],incoming:[incoming])[0]
+        XCTAssertEqual(result.table,saved.table);XCTAssertEqual(result.region,saved.region);XCTAssertTrue(result.warnings.contains("Transcription failed"))
+    }
     func testRerunPreservesReviewedAssetsAndRoundTripPersists() throws {
         var saved = SourceAsset(documentID: UUID(), sourceSHA256: "source", page: 7, kind: .table, label: "Table 1", title: "Checked")
         saved.reviewedAt = Date(); saved.reviewedBy = "QA"

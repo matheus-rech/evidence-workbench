@@ -1,0 +1,138 @@
+{
+  "source_commit": "8ae97c3f3a2db4f87a68aacc5a83f5542ce64ccd",
+  "scope": "Fresh full automatic pipeline on two one-page excerpts after review hardening. All 3 tables used explicitly enabled OpenAI fallback after HF quota failures; not an all-Paddle live run.",
+  "sources": [
+    {
+      "ai_reviewed": 34,
+      "asset_warnings": [
+        "Specialist OCR input is a provisional caption-bounded region, not a precise verified crop; inspect original headers and footnotes.",
+        "Specialist OCR input is a provisional caption-bounded region, not a precise verified crop; inspect original headers and footnotes."
+      ],
+      "assets": 2,
+      "elapsed_seconds": 65.62773704528809,
+      "error": "",
+      "observations": 62,
+      "source": "Arts_2017_physical_page_7_excerpt.pdf",
+      "tables": 2
+    },
+    {
+      "ai_reviewed": 4,
+      "asset_warnings": [
+        "Specialist OCR input is a provisional caption-bounded region, not a precise verified crop; inspect original headers and footnotes."
+      ],
+      "assets": 2,
+      "elapsed_seconds": 55.82659900188446,
+      "error": "",
+      "observations": 58,
+      "source": "Karlsson_2018_physical_page_10_excerpt.pdf",
+      "tables": 1
+    }
+  ],
+  "table_checks": [
+    {
+      "source": "Arts_2017_physical_page_7_excerpt.pdf",
+      "table": "Table 1",
+      "actual_provider": "OpenAI explicit fallback",
+      "numeric_body_check": {
+        "body_numeric_tokens": 40,
+        "body_numeric_recall": 1.0,
+        "grid_cells_correct": 36,
+        "grid_cells_total": 36,
+        "numeric_cell_association_accuracy": 1.0,
+        "structured_grid_produced": true
+      }
+    },
+    {
+      "source": "Karlsson_2018_physical_page_10_excerpt.pdf",
+      "table": "Table 2.",
+      "actual_provider": "OpenAI explicit fallback",
+      "numeric_body_check": {
+        "body_numeric_tokens": 24,
+        "body_numeric_recall": 1.0,
+        "grid_cells_correct": 12,
+        "grid_cells_total": 12,
+        "numeric_cell_association_accuracy": 1.0,
+        "structured_grid_produced": true
+      }
+    }
+  ],
+  "human_verified_observations": 0,
+  "exports": [
+    {
+      "id": "04064F40-3AC8-4A97-84E8-99D34A0DFD93",
+      "files": [
+        {
+          "name": "57A31432-5236-43A0-9389-F4429CD6EA61.png",
+          "sha256": "05faa21ce9a19dead04b4559b27d4bb5379eee6736f6c51797f949f77b9c2ab0"
+        },
+        {
+          "name": "AEC479B7-21C7-4FD6-941E-2AC2FC9F4107.csv",
+          "sha256": "e4ff11f70dd16f0b411e1715c8a3677dfe6f0a205fef0963d25348b949cf2f63"
+        },
+        {
+          "name": "AEC479B7-21C7-4FD6-941E-2AC2FC9F4107.html",
+          "sha256": "eb39bed3cc858108c6fc3eec57a16c531a981c95a613a827ada545734413c099"
+        },
+        {
+          "name": "AEC479B7-21C7-4FD6-941E-2AC2FC9F4107.png",
+          "sha256": "05faa21ce9a19dead04b4559b27d4bb5379eee6736f6c51797f949f77b9c2ab0"
+        },
+        {
+          "name": "ai-reviewed.csv",
+          "sha256": "cca142bc7a59d74c20d1799efba5c7f39c2b5691fbc5d7eda1009895742fb16d"
+        },
+        {
+          "name": "all-observations.csv",
+          "sha256": "a5a1a123adcfce176f400e91a70cb243dc9995515f8fe4031986ff3b5734186d"
+        },
+        {
+          "name": "manifest.json",
+          "sha256": "a05d2f09fed45fca5df10224d1051ba782981d8136438513ae9118259aa73e47"
+        }
+      ],
+      "ai_reviewed_export_rows": 4
+    },
+    {
+      "id": "EF57FCC3-92CB-49DE-BAE2-E9FB9A743278",
+      "files": [
+        {
+          "name": "C9C1400B-02DE-4408-8990-C27595047643.csv",
+          "sha256": "b8f94bcc38e52a5d4a280088dcb44ba7e5f56561b76f590536441bdc34d9c7a6"
+        },
+        {
+          "name": "C9C1400B-02DE-4408-8990-C27595047643.html",
+          "sha256": "b813dc9d096a7a8ab641837cb00bb596f9446b0152fb16ec0a4874f0b25b65b8"
+        },
+        {
+          "name": "C9C1400B-02DE-4408-8990-C27595047643.png",
+          "sha256": "b8fe82e89ccc1b298bdb4449cee1ba96e3df3ab8f00079a50d82af13f5bfb7aa"
+        },
+        {
+          "name": "F4A4E9DE-9C03-419C-BCDA-0E2F2041BAE0.csv",
+          "sha256": "a801c73f2a725438310218e579cfe6471bc16a97909caf15c5df2b6d672580c1"
+        },
+        {
+          "name": "F4A4E9DE-9C03-419C-BCDA-0E2F2041BAE0.html",
+          "sha256": "903ece020e56c81e324188bd4fbb1ed91dadd8999bcfcd65b06323884dbf5e74"
+        },
+        {
+          "name": "F4A4E9DE-9C03-419C-BCDA-0E2F2041BAE0.png",
+          "sha256": "b8fe82e89ccc1b298bdb4449cee1ba96e3df3ab8f00079a50d82af13f5bfb7aa"
+        },
+        {
+          "name": "ai-reviewed.csv",
+          "sha256": "6316cf5da74b9cd40107ae66d9ff88944a1a67edf4eebd23b7128c90c49d8ba9"
+        },
+        {
+          "name": "all-observations.csv",
+          "sha256": "0f29b9eafbc69703c79cae9462b6778fe6b5b9fb80b8c3a00633f69348db2fb2"
+        },
+        {
+          "name": "manifest.json",
+          "sha256": "da937c4c0ac963a66aafb8c2905817d122eb5135fe6b449661c4da6b965f0683"
+        }
+      ],
+      "ai_reviewed_export_rows": 34
+    }
+  ]
+}

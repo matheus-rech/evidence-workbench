@@ -10,16 +10,21 @@ public struct URLSessionTransport: ResponsesTransport, @unchecked Sendable {
     public static let requestTimeout: TimeInterval = 600
     public static let resourceTimeout: TimeInterval = 900
     private let session: URLSession
-    public init() {
+    public init(allowRedirects: Bool = true) {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = Self.requestTimeout; config.timeoutIntervalForResource = Self.resourceTimeout
-        self.session = URLSession(configuration: config)
+        self.session = URLSession(configuration: config, delegate: allowRedirects ? nil : RejectRedirectDelegate(), delegateQueue: nil)
     }
     public func send(_ request: URLRequest) async throws -> (Data, Int, String?) {
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw WorkbenchError.invalid("The AI service returned an invalid HTTP response.") }
         return (data, http.statusCode, http.value(forHTTPHeaderField: "Retry-After"))
     }
+}
+
+/// Table image consent is endpoint-specific. Never forward a body or credential after a redirect.
+final class RejectRedirectDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) { completionHandler(nil) }
 }
 
 public struct ModelExtraction: Decodable, Sendable {

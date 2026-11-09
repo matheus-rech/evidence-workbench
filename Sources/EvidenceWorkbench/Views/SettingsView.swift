@@ -7,7 +7,13 @@ struct SettingsView: View {
     @AppStorage("researchModel") private var researchModel = "o3"
     @AppStorage("sourceCheckModel") private var sourceCheckModel = "gpt-4.1"
     @AppStorage("visualExtraction") private var visualExtraction = true
+    @AppStorage("huggingFaceTableConsent") private var huggingFaceTables = false
     @AppStorage("apiKeyFile") private var keyFilePreference = ""
+    @AppStorage("tableOCRAllowOpenAIFallback") private var tableFallback = false
+    @AppStorage("localPaddleTables") private var localPaddle = false
+    @AppStorage("localPaddleEndpoint") private var paddleEndpoint = "http://127.0.0.1:8766/table"
+    @State private var paddleToken = ""
+    @State private var hfToken = ""
     @State private var key = ""
     @State private var message = ""
     @State private var checking = false
@@ -47,6 +53,26 @@ struct SettingsView: View {
                     Button("Remove saved key", role: .destructive) { do { try KeychainStore.delete(); message = "Saved key removed." } catch { message = error.localizedDescription } }
                 }
                 if !message.isEmpty { Text(message).font(.caption).textSelection(.enabled) }
+            }
+            Section("Measured OCR hybrid") {
+                Text("Apple Vision stays local for OCR. The real-article pilot found that specialist table OCR preserves structure better than text-only OCR; it is not a broad scientific accuracy guarantee.").font(.caption).foregroundStyle(.secondary)
+                Toggle("Use local PaddleOCR-VL-1.6 tables (takes priority)", isOn: $localPaddle)
+                TextField("Local Paddle endpoint", text: $paddleEndpoint)
+                SecureField("Current local Paddle service token", text: $paddleToken)
+                HStack {
+                    Button("Save local Paddle token") { do { try KeychainStore.save(paddleToken.trimmingCharacters(in: .whitespacesAndNewlines),provider:"paddle");paddleToken="";message="Local Paddle token saved separately in Keychain." } catch {message=error.localizedDescription} }.disabled(paddleToken.count < 32)
+                    Button("Remove local Paddle token") { do {try KeychainStore.delete(provider:"paddle");message="Local Paddle token removed."}catch{message=error.localizedDescription} }
+                }
+                Text("Best table latency in the small GPU pilot. Requires a separately started local service; no weights are downloaded by this app. The supplied service uses CUDA and has not been validated on Apple Silicon. If unavailable, tables remain unresolved; no remote fallback is applied to local mode.").font(.caption).foregroundStyle(.secondary)
+                Toggle("Use GLM-OCR tables and allow sending table images to Hugging Face", isOn: $huggingFaceTables)
+                SecureField("Optional Hugging Face token for Space quota", text: $hfToken)
+                HStack {
+                    Button("Save Hugging Face token") { do { try KeychainStore.save(hfToken.trimmingCharacters(in: .whitespacesAndNewlines),provider:"huggingface");hfToken="";message="Hugging Face token saved separately in Keychain." } catch {message=error.localizedDescription} }.disabled(hfToken.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty)
+                    Button("Remove Hugging Face token") { do {try KeychainStore.delete(provider:"huggingface");message="Hugging Face token removed."}catch{message=error.localizedDescription} }
+                }
+                Toggle("If GLM is unavailable, allow OpenAI table transcription", isOn: $tableFallback)
+                Text("Fallback requires OpenAI content consent and an API key. Each fallback table is labeled with its actual provider. With fallback off, unavailable tables stay unresolved. The connected ChatGPT Hugging Face account does not automatically provide a token to this app.").font(.caption).foregroundStyle(.secondary)
+                Text("Optional GLM-OCR uses a community Hugging Face Space, a separate recipient from OpenAI. No OpenAI key is needed for this table path. Public service quotas/availability can interrupt work; no silent provider switch is made. Leave off to retain the existing OpenAI table path. Article extraction and source checks still use your configured OpenAI models.").font(.caption).foregroundStyle(.secondary)
             }
             Section("Model settings") {
                 TextField("Extraction & planning", text: $extractionModel)
