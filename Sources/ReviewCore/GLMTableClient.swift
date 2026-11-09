@@ -84,7 +84,18 @@ public enum GLMTableParser {
         guard (1...40).contains(width), rows.indices.allSatisfy({ occupied[$0]?.count == width && Set(occupied[$0]?.keys.map { $0 } ?? []) == Set(0..<width) }) else { throw WorkbenchError.invalid("Table OCR returned ragged rows; no column was guessed or shifted.") }
         let grid = rows.indices.map { r in (0..<width).map { occupied[r]?[$0] ?? "" } }
         var headers = 1
-        while headers < min(8, grid.count - 1), explicitHeaderRows.contains(headers), fullWidthRows[headers] != width { headers += 1 }
+        var headerNotes: Set<Int> = []
+        while headers < min(8, grid.count - 1), explicitHeaderRows.contains(headers) {
+            if fullWidthRows[headers] == width {
+                let label = grid[headers][0].trimmingCharacters(in: .whitespacesAndNewlines)
+                let markedNote = label.range(of: "^(note|footnote|source)\\b", options: [.regularExpression, .caseInsensitive]) != nil
+                if markedNote { headerNotes.insert(headers) }
+                else if !explicitHeaderRows.contains(headers + 1) || fullWidthRows[headers + 1] == width {
+                    throw WorkbenchError.invalid("A full-width header may be a heading or note. Its role is ambiguous; no table structure was guessed.")
+                }
+            }
+            headers += 1
+        }
         if headers == 1, firstRowGrouped, grid[0][0].isEmpty, grid.count > 2 {
             guard explicitHeaderRows.contains(1) else { throw WorkbenchError.invalid("A grouped table with an empty corner needs explicit header rows; no header/data boundary was guessed.") }
             headers = 2
@@ -92,10 +103,10 @@ public enum GLMTableParser {
         while headers < min(8, grid.count - 1), !grid[0][0].isEmpty, grid[headers][0] == grid[0][0] { headers += 1 }
         let columns = (0..<width).map { column -> String in
             var labels: [String] = []
-            for row in grid.prefix(headers) where !row[column].isEmpty && !labels.contains(row[column]) { labels.append(row[column]) }
+            for index in 0..<headers where !headerNotes.contains(index) && !grid[index][column].isEmpty && !labels.contains(grid[index][column]) { labels.append(grid[index][column]) }
             return labels.isEmpty ? (column == 0 ? "[Row label]" : "[Unlabeled column \(column + 1)]") : labels.joined(separator: " / ")
         }
-        let mergedNotes = grid.indices.filter { $0 >= headers && fullWidthRows[$0] == width }.map { grid[$0][0] }
+        let mergedNotes = grid.indices.filter { headerNotes.contains($0) || ($0 >= headers && fullWidthRows[$0] == width) }.map { grid[$0][0] }
         let body = grid.indices.filter { $0 >= headers && fullWidthRows[$0] != width }.map { grid[$0] }
         return ModelTableReply(title: title.isEmpty ? "OCR table" : String(title.prefix(2_000)), columns: columns, rows: body.map { .init(cells: $0) }, footnotes: mergedNotes, warnings: ["GLM-OCR AI draft from a Hugging Face community Space. Check cells, headers, units and omitted footnotes. The hosted model revision is not guaranteed immutable. This does not verify dataset observations."])
     }

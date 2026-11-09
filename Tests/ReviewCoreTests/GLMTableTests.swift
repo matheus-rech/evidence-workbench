@@ -20,6 +20,23 @@ final class GLMTableTests: XCTestCase {
         RejectRedirectDelegate().urlSession(session,task:task,willPerformHTTPRedirection:response,newRequest:redirected) { request in called=true;XCTAssertNil(request) }
         XCTAssertTrue(called)
     }
+    func testMeasuredGLMTableResponsesThroughProductionParser() throws {
+        let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("benchmarks/ocr-pilot/remote-results.json")
+        let rows=try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:root)) as? [[String:Any]])
+        let expected=["Arts_2017-p7-table":6,"Karlsson_2018-p9-table":15,"Karlsson_2018-p10-table":3]
+        for row in rows where row["engine"] as? String == "glm-ocr" {
+            guard let sample=row["sample"] as? String,let count=expected[sample] else {continue}
+            let table=try GLMTableParser.parse(try XCTUnwrap(row["text"] as? String),title:sample)
+            XCTAssertEqual(table.rows.count,count);XCTAssertTrue(table.rows.allSatisfy{$0.cells.count == table.columns.count})
+        }
+    }
+    func testFullWidthHeadingFollowedByHeadersKeepsHierarchy() throws {
+        let table=try GLMTableParser.parse("<table><tr><th>Measure</th><th>Value</th></tr><tr><th colspan='2'>At baseline</th></tr><tr><th>Group</th><th>Count</th></tr><tr><td>A</td><td>12</td></tr></table>",title:"T")
+        XCTAssertEqual(table.columns,["Measure / At baseline / Group","Value / At baseline / Count"]);XCTAssertEqual(table.rows.map(\.cells),[["A","12"]]);XCTAssertTrue(table.footnotes.isEmpty)
+    }
+    func testAmbiguousFullWidthHeaderIsRejectedRatherThanReclassified() {
+        XCTAssertThrowsError(try GLMTableParser.parse("<table><tr><th>Measure</th><th>Value</th></tr><tr><th colspan='2'>Unknown grouping or note</th></tr><tr><td>N</td><td>12</td></tr></table>",title:"T"))
+    }
     func testFullWidthHeaderStyledNoteRemainsAFootnote() throws {
         let table=try GLMTableParser.parse("<table><tr><th>Measure</th><th>Value</th></tr><tr><th colspan='2'>Note: adjusted values</th></tr><tr><td>N</td><td>12</td></tr></table>",title:"T")
         XCTAssertEqual(table.columns,["Measure","Value"]);XCTAssertEqual(table.footnotes,["Note: adjusted values"]);XCTAssertEqual(table.rows.map(\.cells),[["N","12"]])
