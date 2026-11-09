@@ -99,13 +99,15 @@ final class ReviewEngineTests: XCTestCase {
         XCTAssertTrue(csv.contains("source_quotes")); XCTAssertTrue(csv.contains("'=HYPERLINK")); XCTAssertTrue(csv.contains("\"\"punctuation\"\""))
         XCTAssertEqual(DatasetExporter.cell("-2.5"), "\"-2.5\"")
     }
-    func testVerifiedExportExcludesEarlierPlansAndSuggestions() {
-        var project = ReviewProject(); let doc = source(); project.documents = [doc]; project.plan.version = 2
+    func testVerifiedExportExcludesEarlierPlansAndSuggestions() throws {
+        var project = ReviewProject(); var doc = source(); doc.pages[0].text += "\nnew verified"; project.documents = [doc]; project.plan.version = 2
         project.observations = [
             .init(documentID: doc.id, variableID: "title", value: "old verified", status: .verified, planVersion: 1),
             .init(documentID: doc.id, variableID: "title", value: "new suggestion", planVersion: 2),
             .init(documentID: doc.id, variableID: "title", value: "new verified", status: .verified, planVersion: 2)
         ]
+        project.observations[2].citations = [.init(page: 1, quote: "new verified")]
+        project.observations[2] = try ReviewEngine.verify(project.observations[2], variable: project.plan.variables.first { $0.id == "title" }!, reviewer: "QA", document: doc)
         let csv = DatasetExporter.longCSV(project, verifiedOnly: true)
         XCTAssertTrue(csv.contains("new verified")); XCTAssertFalse(csv.contains("old verified")); XCTAssertFalse(csv.contains("new suggestion"))
     }

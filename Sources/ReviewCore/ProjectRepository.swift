@@ -30,6 +30,15 @@ public actor ProjectRepository {
         return Listing(projects: projects.sorted { $0.updatedAt > $1.updatedAt }, failures: failures.sorted())
     }
 
+    public func automationDirectory(projectID: UUID) throws -> URL {
+        let base = directory(for: projectID).resolvingSymlinksInPath()
+        let exports = base.appendingPathComponent("exports", isDirectory: true)
+        guard exports.resolvingSymlinksInPath().path == exports.path else { throw WorkbenchError.invalid("Export directory cannot be a symbolic link.") }
+        let folder = exports.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder
+    }
+
     public func directory(for id: UUID) -> URL { root.appendingPathComponent(id.uuidString, isDirectory: true) }
 
     public func save(_ project: ReviewProject) throws -> ReviewProject {
@@ -44,7 +53,7 @@ public actor ProjectRepository {
         if FileManager.default.fileExists(atPath: url.path) {
             guard try loadFile(url).revision == project.revision else { throw WorkbenchError.conflict }
         } else if project.revision != 0 { throw WorkbenchError.conflict }
-        var saved = project; saved.updatedAt = Date(); saved.revision += 1
+        var saved = project; saved.schemaVersion = 2; saved.updatedAt = Date(); saved.revision += 1
         let bytes = try encoder.encode(saved)
         try bytes.write(to: url, options: .atomic)
         return saved
@@ -109,13 +118,13 @@ public actor ProjectRepository {
         let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         guard size <= 100 * 1024 * 1024 else { throw WorkbenchError.invalid("Project JSON exceeds the supported size.") }
         let project = try decoder.decode(ReviewProject.self, from: Data(contentsOf: url))
-        guard project.schemaVersion == 1 else { throw WorkbenchError.invalid("Unsupported project version. Update the app before opening this project.") }
+        guard [1, 2].contains(project.schemaVersion) else { throw WorkbenchError.invalid("Unsupported project version. Update the app before opening this project.") }
         guard Set(project.documents.map(\.id)).count == project.documents.count, Set(project.plan.variables.map(\.id)).count == project.plan.variables.count else { throw WorkbenchError.invalid("The project contains duplicate document or field identifiers.") }
         guard (project.assets?.count ?? 0) <= 10_000, Set((project.assets ?? []).map(\.id)).count == (project.assets?.count ?? 0) else { throw WorkbenchError.invalid("The source collection is too large or contains duplicate identifiers.") }
         for asset in project.assets ?? [] {
             guard let document = project.documents.first(where: { $0.id == asset.documentID }) else { throw WorkbenchError.invalid("A source asset references a missing report.") }
             try asset.validate(document: document)
         }
-        return project
+        return try VerificationPolicy.validate(project)
     }
 }

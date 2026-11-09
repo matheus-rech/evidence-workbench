@@ -38,14 +38,8 @@ struct CloudAccess: Sendable {
     init(root: URL? = nil, client: OpenAIClient = OpenAIClient(), cloud: CloudAccess = .live) {
         self.client = client; self.cloud = cloud
         let args = ProcessInfo.processInfo.arguments
-        let argumentRoot: URL? = args.firstIndex(of: "--workspace").flatMap { index in index + 1 < args.count ? URL(fileURLWithPath: args[index + 1]) : nil }
         let normal = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("EvidenceWorkbench/Reviews", isDirectory: true)
-        #if DEBUG
-        let validationRoot = Bundle.main.bundleIdentifier?.hasSuffix(".QA") == true ? (Bundle.main.object(forInfoDictionaryKey: "EWValidationWorkspace") as? String).map { URL(fileURLWithPath: $0) } : nil
-        #else
-        let validationRoot: URL? = nil
-        #endif
-        repository = ProjectRepository(root: root ?? argumentRoot ?? validationRoot ?? normal)
+        repository = ProjectRepository(root: root ?? WorkspaceLocation.resolve(arguments: args, bundleURL: Bundle.main.bundleURL, identifier: Bundle.main.bundleIdentifier, isolated: Bundle.main.object(forInfoDictionaryKey: "EWIsolatedReview") as? Bool == true, configuredQA: Bundle.main.object(forInfoDictionaryKey: "EWValidationWorkspace") as? String, normal: normal))
     }
 
     func loadProjects() async {
@@ -55,6 +49,8 @@ struct CloudAccess: Sendable {
         do {
             let listing = try await repository.list()
             projects = listing.projects; selectedProjectID = projects.first?.id
+            let quarantined = projects.flatMap(\.observations).filter { $0.status == .edited && $0.verificationFingerprint == nil }.count
+            if quarantined > 0 { notice = "Some saved rows need source review before verified export. Values are preserved; check the audit trail." }
             if !listing.failures.isEmpty {
                 notice = "\(listing.failures.count) review folder(s) in \(repository.root.path) could not be opened and were left untouched: " + listing.failures.joined(separator: " · ")
             }
@@ -174,7 +170,7 @@ struct CloudAccess: Sendable {
         }
     }
 
-    func extract(documentID: UUID) {
+    func extract(documentID: UUID, automaticReview: Bool? = nil) {
         guard let project = current, let document = project.documents.first(where: { $0.id == documentID }) else { return }
         perform("Preparing extraction…") {
             let visual = UserDefaults.standard.object(forKey: "visualExtraction") as? Bool ?? true
@@ -184,6 +180,7 @@ struct CloudAccess: Sendable {
             let chunks = ReviewEngine.extractionChunks(document.pages).flatMap { chunk in
                 stride(from: 0, to: chunk.count, by: 3).map { Array(chunk[$0..<min($0 + 3, chunk.count)]) }
             }
+            let automatic = automaticReview ?? UserDefaults.standard.bool(forKey: "automaticReview")
             let variables = project.plan.variables
             var staged: [Observation] = []
             let batches = stride(from: 0, to: variables.count, by: 12).map { Array(variables[$0..<min($0 + 12, variables.count)]) }
@@ -209,6 +206,12 @@ struct CloudAccess: Sendable {
             consolidated = try await self.checkedSuggestions(consolidated, document: document, project: project, sourceURL: sourceURL, key: key)
             let incomplete = document.pages.contains { $0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             consolidated += ReviewEngine.absenceSuggestions(variables: variables, consolidated: consolidated, existing: self.current?.observations ?? project.observations, documentID: document.id, pagesIncomplete: incomplete, model: model, planVersion: project.plan.version)
+            if automatic {
+                consolidated = consolidated.map { row in
+                    guard let field = variables.first(where: { $0.id == row.variableID }) else { return row }
+                    return AutomationPolicy.review(row, variable: field, document: document)
+                }
+            }
             let incoming = consolidated
             try await self.mutate(project.id) { latest in
                 guard latest.plan.readyForArticles, latest.plan.version == project.plan.version else { throw WorkbenchError.invalid("The plan changed during extraction. The staged results were discarded.") }
@@ -219,15 +222,17 @@ struct CloudAccess: Sendable {
                 let contradicted = incoming.filter { $0.sourceCheck?.verdict == .contradicted }.count
                 latest.audit.append(.init(actor: latest.plan.reviewer, action: "AI extraction staged for review", detail: "\(document.filename); \(accepted) suggestions saved; \(incoming.count - accepted) skipped to protect reviewed/edited/rejected rows; visual pages: \(visual); extraction model \(model), source-check model \(self.sourceCheckModel)\(model == self.sourceCheckModel ? " (same model as the extractor; agreement is correlated)" : ""), plan v\(project.plan.version). Separate source checks: \(supported) supported, \(contradicted) contradicted. Model support is not human verification."))
             }
-            self.notice = "Extraction saved as suggestions. Human verification is required."
+            self.notice = automatic ? "Automatic review complete. AI-reviewed rows remain separate from human verification." : "Extraction saved as suggestions. Human verification is required."
+            var assetWarning: String?
             let includeAssets = UserDefaults.standard.object(forKey: "extractAssets") as? Bool ?? true
             if includeAssets && visual && sourceURL.pathExtension.lowercased() == "pdf" {
                 do {
                     try await self.prepareAssets(document: document, project: project, url: sourceURL, key: key)
                     self.notice = "Data suggestions and Tables & images saved. Check source-check disagreements and review each item before reuse."
                 } catch is CancellationError { throw CancellationError() }
-                catch { self.notice = "Data suggestions were saved. Tables & images could not finish: " + error.localizedDescription }
+                catch { assetWarning = "Tables & images did not finish: " + error.localizedDescription; self.notice = assetWarning }
             }
+            if automatic { try await self.exportAutomaticReview(projectID: project.id, documentID: document.id, warnings: assetWarning.map { [$0] } ?? []) }
         }
     }
 
@@ -251,12 +256,12 @@ struct CloudAccess: Sendable {
                     let checks = try await client.checkSources(observations: selected.map { result[$0] }, variables: project.plan.variables, pages: pages, images: images, model: sourceCheckModel, apiKey: key)
                     for index in selected {
                         guard let check = checks.checks.first(where: { $0.observation_id == result[index].id }) else { continue }
-                        result[index].sourceCheck = .init(verdict: check.verdict, reason: check.reason, quote: check.source_quote, model: sourceCheckModel, claimFingerprint: SourceCheckPolicy.fingerprint(result[index]))
+                        result[index].sourceCheck = .init(verdict: check.verdict, reason: check.reason, quote: check.source_quote, model: sourceCheckModel, claimFingerprint: SourceCheckPolicy.fingerprint(result[index]), sourceFingerprint: project.plan.variables.first(where: { $0.id == result[index].variableID }).map { SourceCheckPolicy.checkFingerprint(result[index], variable: $0, document: document) })
                     }
                 } catch {
                     guard tolerateFailures else { throw error }
                     for index in selected {
-                        result[index].sourceCheck = .init(verdict: .unclear, reason: error is CancellationError ? "Source checking cancelled." : "Source check could not complete: " + error.localizedDescription, model: sourceCheckModel, claimFingerprint: SourceCheckPolicy.fingerprint(result[index]))
+                        result[index].sourceCheck = .init(verdict: .unclear, reason: error is CancellationError ? "Source checking cancelled." : "Source check could not complete: " + error.localizedDescription, model: sourceCheckModel, claimFingerprint: SourceCheckPolicy.fingerprint(result[index]), sourceFingerprint: project.plan.variables.first(where: { $0.id == result[index].variableID }).map { SourceCheckPolicy.checkFingerprint(result[index], variable: $0, document: document) })
                     }
                 }
             }
@@ -326,6 +331,33 @@ struct CloudAccess: Sendable {
         }
     }
 
+    /// Automatic mode prepares a complete, explicitly AI-labeled handoff without a save dialog or human verification claim.
+    private func exportAutomaticReview(projectID: UUID, documentID: UUID, warnings: [String]) async throws {
+        guard let project = projects.first(where: { $0.id == projectID }), let document = project.documents.first(where: { $0.id == documentID }) else { return }
+        let source = try await repository.documentURL(document, projectID: project.id)
+        let folder = try await repository.automationDirectory(projectID: project.id)
+        var report = project; report.observations = project.observations.filter { $0.documentID == documentID }
+        try Data(DatasetExporter.longCSV(report, verifiedOnly: false).utf8).write(to: folder.appendingPathComponent("all-observations.csv"), options: .atomic)
+        try Data(DatasetExporter.longCSV(report, verifiedOnly: false, aiReviewedOnly: true).utf8).write(to: folder.appendingPathComponent("ai-reviewed.csv"), options: .atomic)
+        var items: [[String: String]] = []
+        for asset in project.assets ?? [] where asset.documentID == documentID && asset.excluded != true {
+            try Task.checkCancellation()
+            let name = asset.id.uuidString
+            let image = try await RegionExport.image(url: source, pageNumber: asset.page, region: asset.exactCrop ? asset.region : nil)
+            try image.write(to: folder.appendingPathComponent(name + ".png"), options: .atomic)
+            if let table = asset.table {
+                try Data(table.html.utf8).write(to: folder.appendingPathComponent(name + ".html"), options: .atomic)
+                try Data(table.csv.utf8).write(to: folder.appendingPathComponent(name + ".csv"), options: .atomic)
+            }
+            items.append(["id":name,"label":asset.label,"page":String(asset.page),"preview":asset.exactCrop ? "reviewer crop" : "full page, not precise crop"])
+        }
+        let accepted = report.observations.filter { VerificationPolicy.exportable($0, project: report, automated: true) }.count
+        let manifest: [String: Any] = ["mode":"automatic AI review, not human verification", "source":document.filename,"source_sha256":document.sha256,"plan_version":project.plan.version,"ai_reviewed":accepted,"total_observations":report.observations.count,"assets":items,"warnings":warnings,"limitations":"AI acceptance can be wrong. Unanchored image/OCR evidence and unresolved claims stay in all-observations.csv; full-page previews are not precise figure crops."]
+        try JSONSerialization.data(withJSONObject: manifest, options: [.prettyPrinted,.sortedKeys]).write(to: folder.appendingPathComponent("manifest.json"), options: .atomic)
+        try await mutate(project.id) { $0.audit.append(.init(actor: "AI automation", action: "Automatic review exported", detail: folder.path + "; AI reviewed, not human verified.")) }
+        notice = "Automatic output prepared: " + folder.path + ". AI-reviewed and unresolved rows are labeled separately." + (warnings.isEmpty ? "" : " Some assets did not finish; see manifest warnings.")
+    }
+
     func saveAsset(_ asset: SourceAsset, reviewed: Bool = false) {
         guard let project = current, let document = project.documents.first(where: { $0.id == asset.documentID }) else { return }
         perform("Saving table/image…") {
@@ -367,10 +399,10 @@ struct CloudAccess: Sendable {
     func saveObservation(_ observation: Observation, verify: Bool) {
         guard let project = current else { return }
         perform(verify ? "Verifying observation…" : "Saving observation…") {
-            if observation.citations.contains(where: { $0.region != nil }) {
+            if verify || observation.citations.contains(where: { $0.region != nil }) {
                 guard let source = project.documents.first(where: { $0.id == observation.documentID }) else { throw WorkbenchError.invalid("The source report no longer exists.") }
                 let sourceURL = try await self.repository.documentURL(source, projectID: project.id)
-                guard sourceURL.pathExtension.lowercased() == "pdf" else { throw WorkbenchError.invalid("Image regions require an original PDF source.") }
+                guard !observation.citations.contains(where: { $0.region != nil }) || sourceURL.pathExtension.lowercased() == "pdf" else { throw WorkbenchError.invalid("Image regions require an original PDF source.") }
             }
             try await self.mutate(project.id) { latest in
                 guard let variable = latest.plan.variables.first(where: { $0.id == observation.variableID }), let document = latest.documents.first(where: { $0.id == observation.documentID }) else { throw WorkbenchError.invalid("The variable or source report no longer exists.") }
@@ -388,7 +420,7 @@ struct CloudAccess: Sendable {
                 }
                 edited.planVersion = latest.plan.version; edited.updatedAt = Date()
                 if verify { edited = try ReviewEngine.verify(edited, variable: variable, reviewer: latest.plan.reviewer, document: document) }
-                else if edited.status != .rejected { edited.status = .edited; edited.reviewer = "" }
+                else if edited.status != .rejected { edited.status = .edited; edited.reviewer = ""; edited.verificationFingerprint = nil }
                 if let index = latest.observations.firstIndex(where: { $0.id == edited.id }) { latest.observations[index] = edited }
                 else { latest.observations.append(edited) }
                 let before = old.map { "Before: \($0.value) [\($0.missingness.rawValue), \($0.status.rawValue)], context: \($0.context.summary), citations: \($0.citations.map(\.quote).joined(separator: " | ")). " } ?? "New observation. "
@@ -537,6 +569,7 @@ struct CloudAccess: Sendable {
     func exportCSV(to url: URL, verifiedOnly: Bool) {
         guard let project = current else { return }
         perform("Exporting dataset…") {
+            for document in project.documents { _ = try await self.repository.documentURL(document, projectID: project.id) }
             let csv = DatasetExporter.longCSV(project, verifiedOnly: verifiedOnly)
             try Data(csv.utf8).write(to: url, options: .atomic)
             self.notice = verifiedOnly ? "Exported current-plan verified observations." : "Exported all observations with review status, provenance and plan version."

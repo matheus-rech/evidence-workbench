@@ -48,6 +48,7 @@ private struct ArticleWorkspace: View {
     var project: ReviewProject
     var document: SourceDocument
     @AppStorage("extractAssets") private var extractAssets = true
+    @AppStorage("automaticReview") private var automaticReview = false
     @State private var sourceURL: URL?
     @State private var focus: SourceSelection?
     @State private var selection: SourceSelection?
@@ -107,6 +108,8 @@ private struct ArticleWorkspace: View {
                         Button("Extract with AI") { store.extract(documentID: document.id) }.buttonStyle(.borderedProminent).disabled(store.busy || store.hasUnsavedObservation || !project.plan.readyForArticles)
                     }.padding(12)
                     Text("AI sends this report’s text and, when enabled, page images to OpenAI and preserves edited, verified and rejected rows. Scores are model estimates, not calibrated probabilities.").font(.caption2).foregroundStyle(.secondary).padding(.horizontal, 12).padding(.bottom, 8)
+                    Toggle("Automatic review & export · AI decisions", isOn: $automaticReview).font(.caption).padding(.horizontal, 12).disabled(store.busy)
+                    Text(automaticReview ? "Runs extraction, source checks, tables and export. AI-reviewed is separate from human-verified; unresolved rows remain labeled in the full output." : "Assisted mode: review suggestions and verify selected observations yourself.").font(.caption2).foregroundStyle(.secondary).padding(.horizontal, 12)
                     Toggle("Also populate Tables & images", isOn: $extractAssets).font(.caption).padding(.horizontal, 12).padding(.bottom, 8).disabled(store.busy)
                     if !project.plan.variables.contains(where: { $0.id == "outcome_proportion" }) {
                         Text("This plan has no dedicated percentage/rate outcome fields. Missing outcome mean or SD does not mean no outcomes were reported. Amend the plan to add percentage/rate fields when relevant.").font(.caption).foregroundStyle(.orange).padding(.horizontal, 12).padding(.bottom, 8)

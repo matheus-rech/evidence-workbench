@@ -5,7 +5,7 @@ import AppKit
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var store = WorkspaceStore()
     var body: some Scene {
-        WindowGroup(Bundle.main.bundleIdentifier?.hasSuffix(".QA") == true ? "Evidence Workbench — QA TEST COPY" : "Evidence Workbench", id: "workspace") {
+        WindowGroup(Bundle.main.object(forInfoDictionaryKey: "EWIsolatedReview") as? Bool == true ? "Evidence Workbench — ISOLATED REVIEW" : (Bundle.main.bundleIdentifier?.hasSuffix(".QA") == true ? "Evidence Workbench — QA TEST COPY" : "Evidence Workbench"), id: "workspace") {
             ContentView(store: store)
                 .frame(minWidth: 1080, minHeight: 720)
                 .background(WindowCloseGuard(store: store).frame(width: 0, height: 0))

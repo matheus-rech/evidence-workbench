@@ -55,9 +55,23 @@ public struct EditableTable: Codable, Equatable, Sendable, Identifiable {
     public var rtf: String {
         let width = max(700, 10_000 / max(columns.count, 1))
         func row(_ cells: [String], header: Bool) -> String {
-            "\\trowd\\trgaph100" + cells.indices.map { "\\cellx\(($0 + 1) * width)" }.joined() + "\n" + cells.map { "\\intbl " + (header ? "\\b " : "") + escapedRTF($0) + (header ? "\\b0 " : "") + "\\cell " }.joined() + "\\row\n"
+            let positions = cells.indices.map { "\\cellx\(($0 + 1) * width)" }.joined()
+            let content = cells.map { cell -> String in
+                var result = "\\intbl "
+                if header { result += "\\b " }
+                result += escapedRTF(cell)
+                if header { result += "\\b0 " }
+                return result + "\\cell "
+            }.joined()
+            return "\\trowd\\trgaph100" + positions + "\n" + content + "\\row\n"
         }
-        return "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Helvetica;}}\\f0\\fs20 " + escapedRTF(title) + "\\par\n" + row(columns, header: true) + rows.map { row($0, header: false) }.joined() + "\\pard " + (footnotes + [provenance] + warnings + ["Reviewer note: " + (reviewerNote ?? "")]).map(escapedRTF).joined(separator: "\\par ") + "}"
+        var result = "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Helvetica;}}\\f0\\fs20 "
+        result += escapedRTF(title) + "\\par\n"
+        result += row(columns, header: true)
+        result += rows.map { row($0, header: false) }.joined()
+        let notes = footnotes + [provenance] + warnings + ["Reviewer note: " + (reviewerNote ?? "")]
+        result += "\\pard " + notes.map(escapedRTF).joined(separator: "\\par ") + "}"
+        return result
     }
 }
 
